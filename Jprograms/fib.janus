@@ -1,0 +1,33 @@
+procedure fib(int x1, int x2, int n)
+    if n = 0 then
+        x1 += 1
+        x2 += 1
+    else
+        n -= 1
+        call fib(x1, x2, n)
+        x1 += x2
+        x1 <=> x2
+    fi x1 = x2
+
+procedure add(int a, int b)
+    a+=b
+
+procedure main()
+    local int x = 0
+    local int Fib_of_n = 0
+    local int Fib_of_n_minus_1 = 0
+    local int n = 4
+    call fib(Fib_of_n_minus_1, Fib_of_n, n)
+    call add(x, Fib_of_n) 
+    show(x)
+    uncall add(x, Fib_of_n)
+    uncall fib(Fib_of_n_minus_1, Fib_of_n, n)
+    delocal int n = 4
+    delocal int Fib_of_n_minus_1 = 0
+    delocal int Fib_of_n = 0
+    delocal int x = 0
+
+//void main()
+//  x = fib(n) 
+//  print(x)
+

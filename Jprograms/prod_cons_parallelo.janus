@@ -1,0 +1,35 @@
+procedure producer(channel ch, int n)
+    local int i = 0
+    from i = 0 loop
+        i += 1
+        local int item = 0
+            item += i
+            ssend(ch, item)
+        delocal int item = 0
+    until i = n
+    delocal int i = n
+
+procedure consumer(channel ch, stack result, int n)
+    local int i = 0
+    from i = 0 loop
+        local int item = 0
+            srecv(ch, item)
+            show(item)
+            push(item, result)
+        delocal int item = 0
+        i += 1
+    until i = n
+    delocal int i = n
+
+procedure main()
+    local channel ch = empty
+    local stack result = nil
+    local int n = 5
+    par
+        call producer(ch, n)
+    and
+        call consumer(ch, result, n)
+    rap
+    delocal int n = 5
+    delocal stack result = nil
+    delocal channel ch = empty
