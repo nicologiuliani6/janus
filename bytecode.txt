@@ -1,0 +1,7 @@
+0000  START
+0001  PROC main
+0002  LOCAL int x 0
+0003  DECL int y
+0004  DELOCAL int x 0
+0005  END_PROC main
+0006  HALT

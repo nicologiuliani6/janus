@@ -1,2 +1,4 @@
 procedure main()
-    int x
+    local int x = 0
+    int y
+    delocal int x = 0
