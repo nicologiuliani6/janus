@@ -49,8 +49,8 @@ static inline void stack_push(Stack* s, Var* v) {
 // pop (ritorna il puntatore, NON libera)
 static inline Var* stack_pop(Stack* s) {
     if (stack_is_empty(s)) {
-        printf("Stack underflow\n");
-        exit(1);
+        printf("DELOCAL su variabile non local!\n");
+        exit(EXIT_FAILURE);
     }
     return s->data[s->top--];
 }

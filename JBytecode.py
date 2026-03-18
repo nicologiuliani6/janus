@@ -86,6 +86,8 @@ class ByteCode_Compiler:
                         operator = 'DIVEQ'
                     case '%=':
                         operator = 'MODEQ'
+                    case '^=':
+                        operator = 'EXPEQ'
                     case _:
                         print(f"[BYTECODE] operatore artimetico non supportato")
                         exit(1)
@@ -109,6 +111,39 @@ class ByteCode_Compiler:
                 args      = ast[2] if len(ast) > 2 else []
                 args_str = " ".join(str(a) for a in args)
                 self.emit(f"{proc_name.upper()} {args_str}")
+            case 'if':
+                # AST: ('if', entry_cond, then_body, else_body, fi_cond)
+                entry_cond = ast[1]   # ('cond', lhs, rhs)  oppure ('cond', var, val)
+                then_body  = ast[2]
+                else_body  = ast[3]
+                fi_cond    = ast[4]
+
+                # ── etichette univoche (usiamo l'indirizzo corrente per evitare collisioni)
+                uid        = self.addr
+                else_label = f"ELSE_{uid}"
+                fi_label   = f"FI_{uid}"
+
+                # 1) valuta entry condition ed emetti salto condizionale
+                lhs, rhs = entry_cond[1], entry_cond[2]
+                self.emit(f"EVAL {lhs} {rhs}")          # valuta e lascia bool sullo stack
+                self.emit(f"JMPF {else_label}")            # se falso → else
+
+                # 2) then body
+                for stmt in then_body:
+                    self.process(stmt)
+                self.emit(f"JMP {fi_label}")               # salta oltre else
+
+                # 3) else label + else body
+                self.labels[else_label] = self.addr
+                self.emit(f"LABEL {else_label}")
+                for stmt in else_body:
+                    self.process(stmt)
+
+                # 4) fi label + assert exit condition
+                self.labels[fi_label] = self.addr
+                self.emit(f"LABEL {fi_label}")
+                lhs_fi, rhs_fi = fi_cond[1], fi_cond[2]
+                self.emit(f"ASSERT {lhs_fi} {rhs_fi}")  # obbligatorio in Janus
             case _:
                 print(f"[BYTECODE] nodo AST non gestito: {head}  →  {ast}")
                 exit(1)

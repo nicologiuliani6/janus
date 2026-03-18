@@ -1,10 +1,101 @@
-procedure print(int n)
-    show(n)
-
 procedure main()
-    int x 
-    x+=1
-    call print(x)
-    int y
-    
+    int a
+    int b
+    int c
+    int d
 
+    a += 4
+    b += 6
+    c += 2
+    d += 0
+
+    local int p = 0
+    local int q = 3
+    local int r = 1
+    local int s = 0
+    local int t = 2
+    local int u = 0
+    local int v = 5
+
+    // BLOCCO 1
+    if a = 4 then
+        p += 4
+        q += 1
+        if q = 4 then
+            r += 3
+            s += 2
+            if r = 4 then
+                t += 2
+                u += p
+            else
+                t += 0
+                u += 0
+            show(t)
+            show(r)
+            fi t = 4
+            show(r)
+            show(s)
+        else
+            r += 0
+            s += 0
+        show(r)
+        fi r = 4
+        show(p)
+    else
+        p += 0
+        q += 0
+    show(p)
+    fi p = 4
+
+    // BLOCCO 2
+    if b = 6 then
+        a += u
+        d += s
+        if d = 2 then
+            v -= s
+            c += d
+        else
+            v += 0
+            c += 0
+        show(c)
+        show(v)
+        fi c = 4
+        show(a)
+    else
+        a += 0
+        d += 0
+    show(a)
+    fi a = 8
+
+    // BLOCCO 3
+    if c = 4 then
+        b += t
+        if b = 10 then
+            a -= r
+            if a = 4 then
+                d += v
+                q -= r
+            else
+                d += 0
+                q += 0
+            show(q)
+            show(a)
+            fi q = 0
+            show(a)
+        else
+            a += 0
+        show(a)
+        fi a = 4
+        show(b)
+    else
+        b += 0
+    show(b)
+    fi b = 10
+
+    delocal int v = 3
+    delocal int u = 4
+    delocal int t = 4
+    delocal int s = 2
+    delocal int r = 4
+    delocal int q = 0
+    delocal int p = 4
