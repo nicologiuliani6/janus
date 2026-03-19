@@ -83,7 +83,8 @@ def p_declaration(p):
                  | ID PRODEQUALS expr
                  | ID DIVEQUALS expr
                  | ID EXPEQUALS expr
-                 | ID MODEQUALS expr'''
+                 | ID MODEQUALS expr
+                 | ID SWAP expr'''
     if len(p) == 3:
         p[0] = ('decl', p[1], p[2])
         if VERBOSE: print(f"dichiarazione: {p[2]} ({p[1]})")

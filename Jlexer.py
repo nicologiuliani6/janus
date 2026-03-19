@@ -26,7 +26,7 @@ tokens = (
         'ID',
         'NUMBER', 'NIL',
         'EQUALS',
-        'PLUSEQUALS', 'MINUSEQUALS', 'PRODEQUALS', 'DIVEQUALS', 'EXPEQUALS', 'MODEQUALS', # operatori composti
+        'PLUSEQUALS', 'MINUSEQUALS', 'PRODEQUALS', 'DIVEQUALS', 'EXPEQUALS', 'MODEQUALS', 'SWAP', # operatori composti
         'PLUS', 'MINUS', 'PROD', 'DIV', 'EXP', 'MOD',                                    # operatori semplici
         'LPAREN', 'RPAREN',
         'LOCAL', 'DELOCAL',
@@ -52,6 +52,7 @@ t_PRODEQUALS  = r'[*]='
 t_DIVEQUALS   = r'[/]='
 t_EXPEQUALS   = r'[\^]='
 t_MODEQUALS   = r'[%]='
+t_SWAP = r'<=>'
 # operatori semplici
 t_EQUALS = r'='
 t_PLUS   = r'[+]'
@@ -76,7 +77,7 @@ t_ignore = ' \t'
 def t_error(t):
     print(f"[LEXER] riga {t.lexer.lineno}: carattere non riconosciuto '{t.value[0]}'")
     t.lexer.skip(1)
-    #exit(1)
+    exit(1)
 
 lexer = lex.lex()
 if __name__ == '__main__':

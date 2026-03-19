@@ -88,6 +88,8 @@ class ByteCode_Compiler:
                         operator = 'MODEQ'
                     case '^=':
                         operator = 'EXPEQ'
+                    case '<=>':
+                        operator = 'SWAP'
                     case _:
                         print(f"[BYTECODE] operatore artimetico non supportato")
                         exit(1)
@@ -144,6 +146,58 @@ class ByteCode_Compiler:
                 self.emit(f"LABEL {fi_label}")
                 lhs_fi, rhs_fi = fi_cond[1], fi_cond[2]
                 self.emit(f"ASSERT {lhs_fi} {rhs_fi}")  # obbligatorio in Janus
+            case 'from':
+                entry_cond = ast[1]
+                body       = ast[2]
+                until_cond = ast[3]
+
+                uid = self.addr
+
+                start_label = f"FROM_START_{uid}"
+                end_label   = f"FROM_END_{uid}"
+                err_label   = f"FROM_ERR_{uid}"
+
+                # ─────────────────────────────
+                # ENTRY CHECK (OK)
+                # ─────────────────────────────
+                lhs_e, rhs_e = entry_cond[1], entry_cond[2]
+                self.emit(f"EVAL {lhs_e} {rhs_e}")
+                self.emit(f"JMPF {err_label}")
+
+                # ─────────────────────────────
+                # LOOP START
+                # ─────────────────────────────
+                self.labels[start_label] = self.addr
+                self.emit(f"LABEL {start_label}")
+
+                # ─────────────────────────────
+                # BODY
+                # ─────────────────────────────
+                for stmt in body:
+                    self.process(stmt)
+
+                # ─────────────────────────────
+                # UNTIL CHECK (POST-BODY BUT SYMMETRIC)
+                # ─────────────────────────────
+                lhs_u, rhs_u = until_cond[1], until_cond[2]
+
+                self.emit(f"EVAL {lhs_u} {rhs_u}")
+
+                # ⚠️ FIX CRUCIALE: EXIT FIRST, NOT AFTER SIDE EFFECT CHAOS
+                self.emit(f"JMPF {start_label}")
+
+                # ─────────────────────────────
+                # EXIT
+                # ─────────────────────────────
+                self.labels[end_label] = self.addr
+                self.emit(f"LABEL {end_label}")
+
+                # ─────────────────────────────
+                # ERROR
+                # ─────────────────────────────
+                self.labels[err_label] = self.addr
+                self.emit(f"LABEL {err_label}")
+                self.emit("HALT")
             case _:
                 print(f"[BYTECODE] nodo AST non gestito: {head}  →  {ast}")
                 exit(1)

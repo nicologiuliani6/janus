@@ -32,76 +32,78 @@ Rule 26    statement -> ID PRODEQUALS expr
 Rule 27    statement -> ID DIVEQUALS expr
 Rule 28    statement -> ID EXPEQUALS expr
 Rule 29    statement -> ID MODEQUALS expr
-Rule 30    value -> NUMBER
-Rule 31    value -> NIL
-Rule 32    value -> ID
-Rule 33    statement -> LOCAL type ID EQUALS value
-Rule 34    statement -> DELOCAL type ID EQUALS value
-Rule 35    statement -> DELOCAL type ID
-Rule 36    arg_list -> ID
-Rule 37    arg_list -> arg_list COMMA ID
-Rule 38    statement -> CALL ID LPAREN RPAREN
-Rule 39    statement -> CALL ID LPAREN arg_list RPAREN
-Rule 40    statement -> ID LPAREN RPAREN
-Rule 41    statement -> ID LPAREN arg_list RPAREN
-Rule 42    statement -> UNCALL ID LPAREN RPAREN
-Rule 43    statement -> UNCALL ID LPAREN arg_list RPAREN
-Rule 44    condition -> expr EQUALS expr
-Rule 45    statement -> FROM condition LOOP body UNTIL condition
-Rule 46    statement -> IF condition THEN body FI condition
-Rule 47    statement -> IF condition THEN body ELSE body FI condition
+Rule 30    statement -> ID SWAP expr
+Rule 31    value -> NUMBER
+Rule 32    value -> NIL
+Rule 33    value -> ID
+Rule 34    statement -> LOCAL type ID EQUALS value
+Rule 35    statement -> DELOCAL type ID EQUALS value
+Rule 36    statement -> DELOCAL type ID
+Rule 37    arg_list -> ID
+Rule 38    arg_list -> arg_list COMMA ID
+Rule 39    statement -> CALL ID LPAREN RPAREN
+Rule 40    statement -> CALL ID LPAREN arg_list RPAREN
+Rule 41    statement -> ID LPAREN RPAREN
+Rule 42    statement -> ID LPAREN arg_list RPAREN
+Rule 43    statement -> UNCALL ID LPAREN RPAREN
+Rule 44    statement -> UNCALL ID LPAREN arg_list RPAREN
+Rule 45    condition -> expr EQUALS expr
+Rule 46    statement -> FROM condition LOOP body UNTIL condition
+Rule 47    statement -> IF condition THEN body FI condition
+Rule 48    statement -> IF condition THEN body ELSE body FI condition
 
 Terminals, with rules where they appear
 
-CALL                 : 38 39
-COMMA                : 5 37
-DELOCAL              : 34 35
+CALL                 : 39 40
+COMMA                : 5 38
+DELOCAL              : 35 36
 DIV                  : 17
 DIVEQUALS            : 27
-ELSE                 : 47
-EQUALS               : 33 34 44
+ELSE                 : 48
+EQUALS               : 34 35 45
 EXP                  : 18
 EXPEQUALS            : 28
-FI                   : 46 47
-FROM                 : 45
-ID                   : 4 5 6 7 22 23 24 25 26 27 28 29 32 33 34 35 36 37 38 39 40 41 42 43
-IF                   : 46 47
+FI                   : 47 48
+FROM                 : 46
+ID                   : 4 5 6 7 22 23 24 25 26 27 28 29 30 33 34 35 36 37 38 39 40 41 42 43 44
+IF                   : 47 48
 INT                  : 12
-LOCAL                : 33
-LOOP                 : 45
-LPAREN               : 6 7 20 38 39 40 41 42 43
+LOCAL                : 34
+LOOP                 : 46
+LPAREN               : 6 7 20 39 40 41 42 43 44
 MINUS                : 15
 MINUSEQUALS          : 25
 MOD                  : 19
 MODEQUALS            : 29
-NIL                  : 31
-NUMBER               : 21 30
+NIL                  : 32
+NUMBER               : 21 31
 PLUS                 : 14
 PLUSEQUALS           : 24
 PROCEDURE            : 6 7
 PROD                 : 16
 PRODEQUALS           : 26
-RPAREN               : 6 7 20 38 39 40 41 42 43
+RPAREN               : 6 7 20 39 40 41 42 43 44
 STACK                : 13
-THEN                 : 46 47
-UNCALL               : 42 43
-UNTIL                : 45
+SWAP                 : 30
+THEN                 : 47 48
+UNCALL               : 43 44
+UNTIL                : 46
 error                : 
 
 Nonterminals, with rules where they appear
 
-arg_list             : 37 39 41 43
-body                 : 6 7 9 45 46 47 47
-condition            : 45 45 46 46 47 47
+arg_list             : 38 40 42 44
+body                 : 6 7 9 46 47 48 48
+condition            : 46 46 47 47 48 48
 empty                : 10
-expr                 : 14 14 15 15 16 16 17 17 18 18 19 19 20 24 25 26 27 28 29 44 44
+expr                 : 14 14 15 15 16 16 17 17 18 18 19 19 20 24 25 26 27 28 29 30 45 45
 param_list           : 5 7
 procedure            : 2 3
 procedure_list       : 1 3
 program              : 0
 statement            : 8 9
-type                 : 4 5 23 33 34 35
-value                : 33 34
+type                 : 4 5 23 34 35 36
+value                : 34 35
 
 Parsing method: LALR
 
@@ -199,18 +201,19 @@ state 8
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (11) empty -> .
     (12) type -> . INT
     (13) type -> . STACK
@@ -289,8 +292,9 @@ state 13
     (27) statement -> ID . DIVEQUALS expr
     (28) statement -> ID . EXPEQUALS expr
     (29) statement -> ID . MODEQUALS expr
-    (40) statement -> ID . LPAREN RPAREN
-    (41) statement -> ID . LPAREN arg_list RPAREN
+    (30) statement -> ID . SWAP expr
+    (41) statement -> ID . LPAREN RPAREN
+    (42) statement -> ID . LPAREN arg_list RPAREN
 
     PLUSEQUALS      shift and go to state 27
     MINUSEQUALS     shift and go to state 28
@@ -298,7 +302,8 @@ state 13
     DIVEQUALS       shift and go to state 30
     EXPEQUALS       shift and go to state 31
     MODEQUALS       shift and go to state 32
-    LPAREN          shift and go to state 33
+    SWAP            shift and go to state 33
+    LPAREN          shift and go to state 34
 
 
 state 14
@@ -312,18 +317,19 @@ state 14
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (12) type -> . INT
     (13) type -> . STACK
 
@@ -339,7 +345,7 @@ state 14
     INT             shift and go to state 11
     STACK           shift and go to state 12
 
-    statement                      shift and go to state 34
+    statement                      shift and go to state 35
     type                           shift and go to state 17
 
 state 15
@@ -386,24 +392,12 @@ state 17
 
     (23) statement -> type . ID
 
-    ID              shift and go to state 35
+    ID              shift and go to state 36
 
 
 state 18
 
-    (33) statement -> LOCAL . type ID EQUALS value
-    (12) type -> . INT
-    (13) type -> . STACK
-
-    INT             shift and go to state 11
-    STACK           shift and go to state 12
-
-    type                           shift and go to state 36
-
-state 19
-
-    (34) statement -> DELOCAL . type ID EQUALS value
-    (35) statement -> DELOCAL . type ID
+    (34) statement -> LOCAL . type ID EQUALS value
     (12) type -> . INT
     (13) type -> . STACK
 
@@ -412,26 +406,38 @@ state 19
 
     type                           shift and go to state 37
 
+state 19
+
+    (35) statement -> DELOCAL . type ID EQUALS value
+    (36) statement -> DELOCAL . type ID
+    (12) type -> . INT
+    (13) type -> . STACK
+
+    INT             shift and go to state 11
+    STACK           shift and go to state 12
+
+    type                           shift and go to state 38
+
 state 20
 
-    (38) statement -> CALL . ID LPAREN RPAREN
-    (39) statement -> CALL . ID LPAREN arg_list RPAREN
-
-    ID              shift and go to state 38
-
-
-state 21
-
-    (42) statement -> UNCALL . ID LPAREN RPAREN
-    (43) statement -> UNCALL . ID LPAREN arg_list RPAREN
+    (39) statement -> CALL . ID LPAREN RPAREN
+    (40) statement -> CALL . ID LPAREN arg_list RPAREN
 
     ID              shift and go to state 39
 
 
+state 21
+
+    (43) statement -> UNCALL . ID LPAREN RPAREN
+    (44) statement -> UNCALL . ID LPAREN arg_list RPAREN
+
+    ID              shift and go to state 40
+
+
 state 22
 
-    (45) statement -> FROM . condition LOOP body UNTIL condition
-    (44) condition -> . expr EQUALS expr
+    (46) statement -> FROM . condition LOOP body UNTIL condition
+    (45) condition -> . expr EQUALS expr
     (14) expr -> . expr PLUS expr
     (15) expr -> . expr MINUS expr
     (16) expr -> . expr PROD expr
@@ -442,18 +448,18 @@ state 22
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    condition                      shift and go to state 40
-    expr                           shift and go to state 41
+    condition                      shift and go to state 41
+    expr                           shift and go to state 42
 
 state 23
 
-    (46) statement -> IF . condition THEN body FI condition
-    (47) statement -> IF . condition THEN body ELSE body FI condition
-    (44) condition -> . expr EQUALS expr
+    (47) statement -> IF . condition THEN body FI condition
+    (48) statement -> IF . condition THEN body ELSE body FI condition
+    (45) condition -> . expr EQUALS expr
     (14) expr -> . expr PLUS expr
     (15) expr -> . expr MINUS expr
     (16) expr -> . expr PROD expr
@@ -464,12 +470,12 @@ state 23
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    condition                      shift and go to state 45
-    expr                           shift and go to state 41
+    condition                      shift and go to state 46
+    expr                           shift and go to state 42
 
 state 24
 
@@ -484,18 +490,19 @@ state 24
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (11) empty -> .
     (12) type -> . INT
     (13) type -> . STACK
@@ -531,7 +538,7 @@ state 24
   ! INT             [ reduce using rule 11 (empty -> .) ]
   ! STACK           [ reduce using rule 11 (empty -> .) ]
 
-    body                           shift and go to state 46
+    body                           shift and go to state 47
     statement                      shift and go to state 15
     empty                          shift and go to state 16
     type                           shift and go to state 17
@@ -545,7 +552,7 @@ state 25
     INT             shift and go to state 11
     STACK           shift and go to state 12
 
-    type                           shift and go to state 47
+    type                           shift and go to state 48
 
 state 26
 
@@ -568,11 +575,11 @@ state 27
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 48
+    expr                           shift and go to state 49
 
 state 28
 
@@ -587,11 +594,11 @@ state 28
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 49
+    expr                           shift and go to state 50
 
 state 29
 
@@ -606,11 +613,11 @@ state 29
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 50
+    expr                           shift and go to state 51
 
 state 30
 
@@ -625,11 +632,11 @@ state 30
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 51
+    expr                           shift and go to state 52
 
 state 31
 
@@ -644,11 +651,11 @@ state 31
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 52
+    expr                           shift and go to state 53
 
 state 32
 
@@ -663,25 +670,44 @@ state 32
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 53
+    expr                           shift and go to state 54
 
 state 33
 
-    (40) statement -> ID LPAREN . RPAREN
-    (41) statement -> ID LPAREN . arg_list RPAREN
-    (36) arg_list -> . ID
-    (37) arg_list -> . arg_list COMMA ID
+    (30) statement -> ID SWAP . expr
+    (14) expr -> . expr PLUS expr
+    (15) expr -> . expr MINUS expr
+    (16) expr -> . expr PROD expr
+    (17) expr -> . expr DIV expr
+    (18) expr -> . expr EXP expr
+    (19) expr -> . expr MOD expr
+    (20) expr -> . LPAREN expr RPAREN
+    (21) expr -> . NUMBER
+    (22) expr -> . ID
 
-    RPAREN          shift and go to state 55
-    ID              shift and go to state 54
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    arg_list                       shift and go to state 56
+    expr                           shift and go to state 55
 
 state 34
+
+    (41) statement -> ID LPAREN . RPAREN
+    (42) statement -> ID LPAREN . arg_list RPAREN
+    (37) arg_list -> . ID
+    (38) arg_list -> . arg_list COMMA ID
+
+    RPAREN          shift and go to state 57
+    ID              shift and go to state 56
+
+    arg_list                       shift and go to state 58
+
+state 35
 
     (9) body -> body statement .
 
@@ -701,7 +727,7 @@ state 34
     ELSE            reduce using rule 9 (body -> body statement .)
 
 
-state 35
+state 36
 
     (23) statement -> type ID .
 
@@ -721,47 +747,47 @@ state 35
     ELSE            reduce using rule 23 (statement -> type ID .)
 
 
-state 36
-
-    (33) statement -> LOCAL type . ID EQUALS value
-
-    ID              shift and go to state 57
-
-
 state 37
 
-    (34) statement -> DELOCAL type . ID EQUALS value
-    (35) statement -> DELOCAL type . ID
+    (34) statement -> LOCAL type . ID EQUALS value
 
-    ID              shift and go to state 58
+    ID              shift and go to state 59
 
 
 state 38
 
-    (38) statement -> CALL ID . LPAREN RPAREN
-    (39) statement -> CALL ID . LPAREN arg_list RPAREN
+    (35) statement -> DELOCAL type . ID EQUALS value
+    (36) statement -> DELOCAL type . ID
 
-    LPAREN          shift and go to state 59
+    ID              shift and go to state 60
 
 
 state 39
 
-    (42) statement -> UNCALL ID . LPAREN RPAREN
-    (43) statement -> UNCALL ID . LPAREN arg_list RPAREN
+    (39) statement -> CALL ID . LPAREN RPAREN
+    (40) statement -> CALL ID . LPAREN arg_list RPAREN
 
-    LPAREN          shift and go to state 60
+    LPAREN          shift and go to state 61
 
 
 state 40
 
-    (45) statement -> FROM condition . LOOP body UNTIL condition
+    (43) statement -> UNCALL ID . LPAREN RPAREN
+    (44) statement -> UNCALL ID . LPAREN arg_list RPAREN
 
-    LOOP            shift and go to state 61
+    LPAREN          shift and go to state 62
 
 
 state 41
 
-    (44) condition -> expr . EQUALS expr
+    (46) statement -> FROM condition . LOOP body UNTIL condition
+
+    LOOP            shift and go to state 63
+
+
+state 42
+
+    (45) condition -> expr . EQUALS expr
     (14) expr -> expr . PLUS expr
     (15) expr -> expr . MINUS expr
     (16) expr -> expr . PROD expr
@@ -769,16 +795,16 @@ state 41
     (18) expr -> expr . EXP expr
     (19) expr -> expr . MOD expr
 
-    EQUALS          shift and go to state 62
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    EQUALS          shift and go to state 64
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 42
+state 43
 
     (20) expr -> LPAREN . expr RPAREN
     (14) expr -> . expr PLUS expr
@@ -791,13 +817,13 @@ state 42
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 69
+    expr                           shift and go to state 71
 
-state 43
+state 44
 
     (21) expr -> NUMBER .
 
@@ -827,7 +853,7 @@ state 43
     THEN            reduce using rule 21 (expr -> NUMBER .)
 
 
-state 44
+state 45
 
     (22) expr -> ID .
 
@@ -857,15 +883,15 @@ state 44
     THEN            reduce using rule 22 (expr -> ID .)
 
 
-state 45
-
-    (46) statement -> IF condition . THEN body FI condition
-    (47) statement -> IF condition . THEN body ELSE body FI condition
-
-    THEN            shift and go to state 70
-
-
 state 46
+
+    (47) statement -> IF condition . THEN body FI condition
+    (48) statement -> IF condition . THEN body ELSE body FI condition
+
+    THEN            shift and go to state 72
+
+
+state 47
 
     (7) procedure -> PROCEDURE ID LPAREN param_list RPAREN body .
     (9) body -> body . statement
@@ -876,18 +902,19 @@ state 46
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (12) type -> . INT
     (13) type -> . STACK
 
@@ -903,17 +930,17 @@ state 46
     INT             shift and go to state 11
     STACK           shift and go to state 12
 
-    statement                      shift and go to state 34
+    statement                      shift and go to state 35
     type                           shift and go to state 17
 
-state 47
+state 48
 
     (5) param_list -> param_list COMMA type . ID
 
-    ID              shift and go to state 71
+    ID              shift and go to state 73
 
 
-state 48
+state 49
 
     (24) statement -> ID PLUSEQUALS expr .
     (14) expr -> expr . PLUS expr
@@ -937,15 +964,15 @@ state 48
     UNTIL           reduce using rule 24 (statement -> ID PLUSEQUALS expr .)
     FI              reduce using rule 24 (statement -> ID PLUSEQUALS expr .)
     ELSE            reduce using rule 24 (statement -> ID PLUSEQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 49
+state 50
 
     (25) statement -> ID MINUSEQUALS expr .
     (14) expr -> expr . PLUS expr
@@ -969,15 +996,15 @@ state 49
     UNTIL           reduce using rule 25 (statement -> ID MINUSEQUALS expr .)
     FI              reduce using rule 25 (statement -> ID MINUSEQUALS expr .)
     ELSE            reduce using rule 25 (statement -> ID MINUSEQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 50
+state 51
 
     (26) statement -> ID PRODEQUALS expr .
     (14) expr -> expr . PLUS expr
@@ -1001,15 +1028,15 @@ state 50
     UNTIL           reduce using rule 26 (statement -> ID PRODEQUALS expr .)
     FI              reduce using rule 26 (statement -> ID PRODEQUALS expr .)
     ELSE            reduce using rule 26 (statement -> ID PRODEQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 51
+state 52
 
     (27) statement -> ID DIVEQUALS expr .
     (14) expr -> expr . PLUS expr
@@ -1033,15 +1060,15 @@ state 51
     UNTIL           reduce using rule 27 (statement -> ID DIVEQUALS expr .)
     FI              reduce using rule 27 (statement -> ID DIVEQUALS expr .)
     ELSE            reduce using rule 27 (statement -> ID DIVEQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 52
+state 53
 
     (28) statement -> ID EXPEQUALS expr .
     (14) expr -> expr . PLUS expr
@@ -1065,15 +1092,15 @@ state 52
     UNTIL           reduce using rule 28 (statement -> ID EXPEQUALS expr .)
     FI              reduce using rule 28 (statement -> ID EXPEQUALS expr .)
     ELSE            reduce using rule 28 (statement -> ID EXPEQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 53
+state 54
 
     (29) statement -> ID MODEQUALS expr .
     (14) expr -> expr . PLUS expr
@@ -1097,107 +1124,139 @@ state 53
     UNTIL           reduce using rule 29 (statement -> ID MODEQUALS expr .)
     FI              reduce using rule 29 (statement -> ID MODEQUALS expr .)
     ELSE            reduce using rule 29 (statement -> ID MODEQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
-
-
-state 54
-
-    (36) arg_list -> ID .
-
-    RPAREN          reduce using rule 36 (arg_list -> ID .)
-    COMMA           reduce using rule 36 (arg_list -> ID .)
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
 state 55
 
-    (40) statement -> ID LPAREN RPAREN .
+    (30) statement -> ID SWAP expr .
+    (14) expr -> expr . PLUS expr
+    (15) expr -> expr . MINUS expr
+    (16) expr -> expr . PROD expr
+    (17) expr -> expr . DIV expr
+    (18) expr -> expr . EXP expr
+    (19) expr -> expr . MOD expr
 
-    ID              reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    LOCAL           reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    DELOCAL         reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    CALL            reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    UNCALL          reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    FROM            reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    IF              reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    INT             reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    STACK           reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    PROCEDURE       reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    $end            reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    UNTIL           reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    FI              reduce using rule 40 (statement -> ID LPAREN RPAREN .)
-    ELSE            reduce using rule 40 (statement -> ID LPAREN RPAREN .)
+    ID              reduce using rule 30 (statement -> ID SWAP expr .)
+    LOCAL           reduce using rule 30 (statement -> ID SWAP expr .)
+    DELOCAL         reduce using rule 30 (statement -> ID SWAP expr .)
+    CALL            reduce using rule 30 (statement -> ID SWAP expr .)
+    UNCALL          reduce using rule 30 (statement -> ID SWAP expr .)
+    FROM            reduce using rule 30 (statement -> ID SWAP expr .)
+    IF              reduce using rule 30 (statement -> ID SWAP expr .)
+    INT             reduce using rule 30 (statement -> ID SWAP expr .)
+    STACK           reduce using rule 30 (statement -> ID SWAP expr .)
+    PROCEDURE       reduce using rule 30 (statement -> ID SWAP expr .)
+    $end            reduce using rule 30 (statement -> ID SWAP expr .)
+    UNTIL           reduce using rule 30 (statement -> ID SWAP expr .)
+    FI              reduce using rule 30 (statement -> ID SWAP expr .)
+    ELSE            reduce using rule 30 (statement -> ID SWAP expr .)
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
 state 56
 
-    (41) statement -> ID LPAREN arg_list . RPAREN
-    (37) arg_list -> arg_list . COMMA ID
+    (37) arg_list -> ID .
 
-    RPAREN          shift and go to state 72
-    COMMA           shift and go to state 73
+    RPAREN          reduce using rule 37 (arg_list -> ID .)
+    COMMA           reduce using rule 37 (arg_list -> ID .)
 
 
 state 57
 
-    (33) statement -> LOCAL type ID . EQUALS value
+    (41) statement -> ID LPAREN RPAREN .
 
-    EQUALS          shift and go to state 74
+    ID              reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    LOCAL           reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    DELOCAL         reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    CALL            reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    UNCALL          reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    FROM            reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    IF              reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    INT             reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    STACK           reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    PROCEDURE       reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    $end            reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    UNTIL           reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    FI              reduce using rule 41 (statement -> ID LPAREN RPAREN .)
+    ELSE            reduce using rule 41 (statement -> ID LPAREN RPAREN .)
 
 
 state 58
 
-    (34) statement -> DELOCAL type ID . EQUALS value
-    (35) statement -> DELOCAL type ID .
+    (42) statement -> ID LPAREN arg_list . RPAREN
+    (38) arg_list -> arg_list . COMMA ID
 
-    EQUALS          shift and go to state 75
-    ID              reduce using rule 35 (statement -> DELOCAL type ID .)
-    LOCAL           reduce using rule 35 (statement -> DELOCAL type ID .)
-    DELOCAL         reduce using rule 35 (statement -> DELOCAL type ID .)
-    CALL            reduce using rule 35 (statement -> DELOCAL type ID .)
-    UNCALL          reduce using rule 35 (statement -> DELOCAL type ID .)
-    FROM            reduce using rule 35 (statement -> DELOCAL type ID .)
-    IF              reduce using rule 35 (statement -> DELOCAL type ID .)
-    INT             reduce using rule 35 (statement -> DELOCAL type ID .)
-    STACK           reduce using rule 35 (statement -> DELOCAL type ID .)
-    PROCEDURE       reduce using rule 35 (statement -> DELOCAL type ID .)
-    $end            reduce using rule 35 (statement -> DELOCAL type ID .)
-    UNTIL           reduce using rule 35 (statement -> DELOCAL type ID .)
-    FI              reduce using rule 35 (statement -> DELOCAL type ID .)
-    ELSE            reduce using rule 35 (statement -> DELOCAL type ID .)
+    RPAREN          shift and go to state 74
+    COMMA           shift and go to state 75
 
 
 state 59
 
-    (38) statement -> CALL ID LPAREN . RPAREN
-    (39) statement -> CALL ID LPAREN . arg_list RPAREN
-    (36) arg_list -> . ID
-    (37) arg_list -> . arg_list COMMA ID
+    (34) statement -> LOCAL type ID . EQUALS value
 
-    RPAREN          shift and go to state 76
-    ID              shift and go to state 54
+    EQUALS          shift and go to state 76
 
-    arg_list                       shift and go to state 77
 
 state 60
 
-    (42) statement -> UNCALL ID LPAREN . RPAREN
-    (43) statement -> UNCALL ID LPAREN . arg_list RPAREN
-    (36) arg_list -> . ID
-    (37) arg_list -> . arg_list COMMA ID
+    (35) statement -> DELOCAL type ID . EQUALS value
+    (36) statement -> DELOCAL type ID .
 
-    RPAREN          shift and go to state 78
-    ID              shift and go to state 54
+    EQUALS          shift and go to state 77
+    ID              reduce using rule 36 (statement -> DELOCAL type ID .)
+    LOCAL           reduce using rule 36 (statement -> DELOCAL type ID .)
+    DELOCAL         reduce using rule 36 (statement -> DELOCAL type ID .)
+    CALL            reduce using rule 36 (statement -> DELOCAL type ID .)
+    UNCALL          reduce using rule 36 (statement -> DELOCAL type ID .)
+    FROM            reduce using rule 36 (statement -> DELOCAL type ID .)
+    IF              reduce using rule 36 (statement -> DELOCAL type ID .)
+    INT             reduce using rule 36 (statement -> DELOCAL type ID .)
+    STACK           reduce using rule 36 (statement -> DELOCAL type ID .)
+    PROCEDURE       reduce using rule 36 (statement -> DELOCAL type ID .)
+    $end            reduce using rule 36 (statement -> DELOCAL type ID .)
+    UNTIL           reduce using rule 36 (statement -> DELOCAL type ID .)
+    FI              reduce using rule 36 (statement -> DELOCAL type ID .)
+    ELSE            reduce using rule 36 (statement -> DELOCAL type ID .)
 
-    arg_list                       shift and go to state 79
 
 state 61
 
-    (45) statement -> FROM condition LOOP . body UNTIL condition
+    (39) statement -> CALL ID LPAREN . RPAREN
+    (40) statement -> CALL ID LPAREN . arg_list RPAREN
+    (37) arg_list -> . ID
+    (38) arg_list -> . arg_list COMMA ID
+
+    RPAREN          shift and go to state 78
+    ID              shift and go to state 56
+
+    arg_list                       shift and go to state 79
+
+state 62
+
+    (43) statement -> UNCALL ID LPAREN . RPAREN
+    (44) statement -> UNCALL ID LPAREN . arg_list RPAREN
+    (37) arg_list -> . ID
+    (38) arg_list -> . arg_list COMMA ID
+
+    RPAREN          shift and go to state 80
+    ID              shift and go to state 56
+
+    arg_list                       shift and go to state 81
+
+state 63
+
+    (46) statement -> FROM condition LOOP . body UNTIL condition
     (8) body -> . statement
     (9) body -> . body statement
     (10) body -> . empty
@@ -1208,18 +1267,19 @@ state 61
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (11) empty -> .
     (12) type -> . INT
     (13) type -> . STACK
@@ -1254,14 +1314,14 @@ state 61
   ! INT             [ reduce using rule 11 (empty -> .) ]
   ! STACK           [ reduce using rule 11 (empty -> .) ]
 
-    body                           shift and go to state 80
+    body                           shift and go to state 82
     statement                      shift and go to state 15
     empty                          shift and go to state 16
     type                           shift and go to state 17
 
-state 62
+state 64
 
-    (44) condition -> expr EQUALS . expr
+    (45) condition -> expr EQUALS . expr
     (14) expr -> . expr PLUS expr
     (15) expr -> . expr MINUS expr
     (16) expr -> . expr PROD expr
@@ -1272,13 +1332,13 @@ state 62
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 81
+    expr                           shift and go to state 83
 
-state 63
+state 65
 
     (14) expr -> expr PLUS . expr
     (14) expr -> . expr PLUS expr
@@ -1291,13 +1351,13 @@ state 63
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 82
+    expr                           shift and go to state 84
 
-state 64
+state 66
 
     (15) expr -> expr MINUS . expr
     (14) expr -> . expr PLUS expr
@@ -1310,13 +1370,13 @@ state 64
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 83
+    expr                           shift and go to state 85
 
-state 65
+state 67
 
     (16) expr -> expr PROD . expr
     (14) expr -> . expr PLUS expr
@@ -1329,13 +1389,13 @@ state 65
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 84
+    expr                           shift and go to state 86
 
-state 66
+state 68
 
     (17) expr -> expr DIV . expr
     (14) expr -> . expr PLUS expr
@@ -1348,13 +1408,13 @@ state 66
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 85
+    expr                           shift and go to state 87
 
-state 67
+state 69
 
     (18) expr -> expr EXP . expr
     (14) expr -> . expr PLUS expr
@@ -1367,13 +1427,13 @@ state 67
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 86
+    expr                           shift and go to state 88
 
-state 68
+state 70
 
     (19) expr -> expr MOD . expr
     (14) expr -> . expr PLUS expr
@@ -1386,13 +1446,13 @@ state 68
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    expr                           shift and go to state 87
+    expr                           shift and go to state 89
 
-state 69
+state 71
 
     (20) expr -> LPAREN expr . RPAREN
     (14) expr -> expr . PLUS expr
@@ -1402,19 +1462,19 @@ state 69
     (18) expr -> expr . EXP expr
     (19) expr -> expr . MOD expr
 
-    RPAREN          shift and go to state 88
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    RPAREN          shift and go to state 90
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 70
+state 72
 
-    (46) statement -> IF condition THEN . body FI condition
-    (47) statement -> IF condition THEN . body ELSE body FI condition
+    (47) statement -> IF condition THEN . body FI condition
+    (48) statement -> IF condition THEN . body ELSE body FI condition
     (8) body -> . statement
     (9) body -> . body statement
     (10) body -> . empty
@@ -1425,18 +1485,19 @@ state 70
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (11) empty -> .
     (12) type -> . INT
     (13) type -> . STACK
@@ -1472,12 +1533,12 @@ state 70
   ! INT             [ reduce using rule 11 (empty -> .) ]
   ! STACK           [ reduce using rule 11 (empty -> .) ]
 
-    body                           shift and go to state 89
+    body                           shift and go to state 91
     statement                      shift and go to state 15
     empty                          shift and go to state 16
     type                           shift and go to state 17
 
-state 71
+state 73
 
     (5) param_list -> param_list COMMA type ID .
 
@@ -1485,120 +1546,120 @@ state 71
     COMMA           reduce using rule 5 (param_list -> param_list COMMA type ID .)
 
 
-state 72
-
-    (41) statement -> ID LPAREN arg_list RPAREN .
-
-    ID              reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    LOCAL           reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    DELOCAL         reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    CALL            reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    UNCALL          reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    FROM            reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    IF              reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    INT             reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    STACK           reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    PROCEDURE       reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    $end            reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    UNTIL           reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    FI              reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-    ELSE            reduce using rule 41 (statement -> ID LPAREN arg_list RPAREN .)
-
-
-state 73
-
-    (37) arg_list -> arg_list COMMA . ID
-
-    ID              shift and go to state 90
-
-
 state 74
 
-    (33) statement -> LOCAL type ID EQUALS . value
-    (30) value -> . NUMBER
-    (31) value -> . NIL
-    (32) value -> . ID
+    (42) statement -> ID LPAREN arg_list RPAREN .
 
-    NUMBER          shift and go to state 93
-    NIL             shift and go to state 94
-    ID              shift and go to state 91
+    ID              reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    LOCAL           reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    DELOCAL         reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    CALL            reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    UNCALL          reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    FROM            reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    IF              reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    INT             reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    STACK           reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    PROCEDURE       reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    $end            reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    UNTIL           reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    FI              reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
+    ELSE            reduce using rule 42 (statement -> ID LPAREN arg_list RPAREN .)
 
-    value                          shift and go to state 92
 
 state 75
 
-    (34) statement -> DELOCAL type ID EQUALS . value
-    (30) value -> . NUMBER
-    (31) value -> . NIL
-    (32) value -> . ID
+    (38) arg_list -> arg_list COMMA . ID
 
-    NUMBER          shift and go to state 93
-    NIL             shift and go to state 94
-    ID              shift and go to state 91
+    ID              shift and go to state 92
 
-    value                          shift and go to state 95
 
 state 76
 
-    (38) statement -> CALL ID LPAREN RPAREN .
+    (34) statement -> LOCAL type ID EQUALS . value
+    (31) value -> . NUMBER
+    (32) value -> . NIL
+    (33) value -> . ID
 
-    ID              reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    LOCAL           reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    DELOCAL         reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    CALL            reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    UNCALL          reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    FROM            reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    IF              reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    INT             reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    STACK           reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    PROCEDURE       reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    $end            reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    UNTIL           reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    FI              reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
-    ELSE            reduce using rule 38 (statement -> CALL ID LPAREN RPAREN .)
+    NUMBER          shift and go to state 95
+    NIL             shift and go to state 96
+    ID              shift and go to state 93
 
+    value                          shift and go to state 94
 
 state 77
 
-    (39) statement -> CALL ID LPAREN arg_list . RPAREN
-    (37) arg_list -> arg_list . COMMA ID
+    (35) statement -> DELOCAL type ID EQUALS . value
+    (31) value -> . NUMBER
+    (32) value -> . NIL
+    (33) value -> . ID
 
-    RPAREN          shift and go to state 96
-    COMMA           shift and go to state 73
+    NUMBER          shift and go to state 95
+    NIL             shift and go to state 96
+    ID              shift and go to state 93
 
+    value                          shift and go to state 97
 
 state 78
 
-    (42) statement -> UNCALL ID LPAREN RPAREN .
+    (39) statement -> CALL ID LPAREN RPAREN .
 
-    ID              reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    LOCAL           reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    DELOCAL         reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    CALL            reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    UNCALL          reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    FROM            reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    IF              reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    INT             reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    STACK           reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    PROCEDURE       reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    $end            reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    UNTIL           reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    FI              reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
-    ELSE            reduce using rule 42 (statement -> UNCALL ID LPAREN RPAREN .)
+    ID              reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    LOCAL           reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    DELOCAL         reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    CALL            reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    UNCALL          reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    FROM            reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    IF              reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    INT             reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    STACK           reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    PROCEDURE       reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    $end            reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    UNTIL           reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    FI              reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
+    ELSE            reduce using rule 39 (statement -> CALL ID LPAREN RPAREN .)
 
 
 state 79
 
-    (43) statement -> UNCALL ID LPAREN arg_list . RPAREN
-    (37) arg_list -> arg_list . COMMA ID
+    (40) statement -> CALL ID LPAREN arg_list . RPAREN
+    (38) arg_list -> arg_list . COMMA ID
 
-    RPAREN          shift and go to state 97
-    COMMA           shift and go to state 73
+    RPAREN          shift and go to state 98
+    COMMA           shift and go to state 75
 
 
 state 80
 
-    (45) statement -> FROM condition LOOP body . UNTIL condition
+    (43) statement -> UNCALL ID LPAREN RPAREN .
+
+    ID              reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    LOCAL           reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    DELOCAL         reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    CALL            reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    UNCALL          reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    FROM            reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    IF              reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    INT             reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    STACK           reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    PROCEDURE       reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    $end            reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    UNTIL           reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    FI              reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+    ELSE            reduce using rule 43 (statement -> UNCALL ID LPAREN RPAREN .)
+
+
+state 81
+
+    (44) statement -> UNCALL ID LPAREN arg_list . RPAREN
+    (38) arg_list -> arg_list . COMMA ID
+
+    RPAREN          shift and go to state 99
+    COMMA           shift and go to state 75
+
+
+state 82
+
+    (46) statement -> FROM condition LOOP body . UNTIL condition
     (9) body -> body . statement
     (23) statement -> . type ID
     (24) statement -> . ID PLUSEQUALS expr
@@ -1607,22 +1668,23 @@ state 80
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (12) type -> . INT
     (13) type -> . STACK
 
-    UNTIL           shift and go to state 98
+    UNTIL           shift and go to state 100
     ID              shift and go to state 13
     LOCAL           shift and go to state 18
     DELOCAL         shift and go to state 19
@@ -1633,12 +1695,12 @@ state 80
     INT             shift and go to state 11
     STACK           shift and go to state 12
 
-    statement                      shift and go to state 34
+    statement                      shift and go to state 35
     type                           shift and go to state 17
 
-state 81
+state 83
 
-    (44) condition -> expr EQUALS expr .
+    (45) condition -> expr EQUALS expr .
     (14) expr -> expr . PLUS expr
     (15) expr -> expr . MINUS expr
     (16) expr -> expr . PROD expr
@@ -1646,31 +1708,31 @@ state 81
     (18) expr -> expr . EXP expr
     (19) expr -> expr . MOD expr
 
-    LOOP            reduce using rule 44 (condition -> expr EQUALS expr .)
-    THEN            reduce using rule 44 (condition -> expr EQUALS expr .)
-    ID              reduce using rule 44 (condition -> expr EQUALS expr .)
-    LOCAL           reduce using rule 44 (condition -> expr EQUALS expr .)
-    DELOCAL         reduce using rule 44 (condition -> expr EQUALS expr .)
-    CALL            reduce using rule 44 (condition -> expr EQUALS expr .)
-    UNCALL          reduce using rule 44 (condition -> expr EQUALS expr .)
-    FROM            reduce using rule 44 (condition -> expr EQUALS expr .)
-    IF              reduce using rule 44 (condition -> expr EQUALS expr .)
-    INT             reduce using rule 44 (condition -> expr EQUALS expr .)
-    STACK           reduce using rule 44 (condition -> expr EQUALS expr .)
-    PROCEDURE       reduce using rule 44 (condition -> expr EQUALS expr .)
-    $end            reduce using rule 44 (condition -> expr EQUALS expr .)
-    UNTIL           reduce using rule 44 (condition -> expr EQUALS expr .)
-    FI              reduce using rule 44 (condition -> expr EQUALS expr .)
-    ELSE            reduce using rule 44 (condition -> expr EQUALS expr .)
-    PLUS            shift and go to state 63
-    MINUS           shift and go to state 64
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    LOOP            reduce using rule 45 (condition -> expr EQUALS expr .)
+    THEN            reduce using rule 45 (condition -> expr EQUALS expr .)
+    ID              reduce using rule 45 (condition -> expr EQUALS expr .)
+    LOCAL           reduce using rule 45 (condition -> expr EQUALS expr .)
+    DELOCAL         reduce using rule 45 (condition -> expr EQUALS expr .)
+    CALL            reduce using rule 45 (condition -> expr EQUALS expr .)
+    UNCALL          reduce using rule 45 (condition -> expr EQUALS expr .)
+    FROM            reduce using rule 45 (condition -> expr EQUALS expr .)
+    IF              reduce using rule 45 (condition -> expr EQUALS expr .)
+    INT             reduce using rule 45 (condition -> expr EQUALS expr .)
+    STACK           reduce using rule 45 (condition -> expr EQUALS expr .)
+    PROCEDURE       reduce using rule 45 (condition -> expr EQUALS expr .)
+    $end            reduce using rule 45 (condition -> expr EQUALS expr .)
+    UNTIL           reduce using rule 45 (condition -> expr EQUALS expr .)
+    FI              reduce using rule 45 (condition -> expr EQUALS expr .)
+    ELSE            reduce using rule 45 (condition -> expr EQUALS expr .)
+    PLUS            shift and go to state 65
+    MINUS           shift and go to state 66
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
 
-state 82
+state 84
 
     (14) expr -> expr PLUS expr .
     (14) expr -> expr . PLUS expr
@@ -1700,20 +1762,20 @@ state 82
     RPAREN          reduce using rule 14 (expr -> expr PLUS expr .)
     LOOP            reduce using rule 14 (expr -> expr PLUS expr .)
     THEN            reduce using rule 14 (expr -> expr PLUS expr .)
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
   ! PROD            [ reduce using rule 14 (expr -> expr PLUS expr .) ]
   ! DIV             [ reduce using rule 14 (expr -> expr PLUS expr .) ]
   ! EXP             [ reduce using rule 14 (expr -> expr PLUS expr .) ]
   ! MOD             [ reduce using rule 14 (expr -> expr PLUS expr .) ]
-  ! PLUS            [ shift and go to state 63 ]
-  ! MINUS           [ shift and go to state 64 ]
+  ! PLUS            [ shift and go to state 65 ]
+  ! MINUS           [ shift and go to state 66 ]
 
 
-state 83
+state 85
 
     (15) expr -> expr MINUS expr .
     (14) expr -> expr . PLUS expr
@@ -1743,20 +1805,20 @@ state 83
     RPAREN          reduce using rule 15 (expr -> expr MINUS expr .)
     LOOP            reduce using rule 15 (expr -> expr MINUS expr .)
     THEN            reduce using rule 15 (expr -> expr MINUS expr .)
-    PROD            shift and go to state 65
-    DIV             shift and go to state 66
-    EXP             shift and go to state 67
-    MOD             shift and go to state 68
+    PROD            shift and go to state 67
+    DIV             shift and go to state 68
+    EXP             shift and go to state 69
+    MOD             shift and go to state 70
 
   ! PROD            [ reduce using rule 15 (expr -> expr MINUS expr .) ]
   ! DIV             [ reduce using rule 15 (expr -> expr MINUS expr .) ]
   ! EXP             [ reduce using rule 15 (expr -> expr MINUS expr .) ]
   ! MOD             [ reduce using rule 15 (expr -> expr MINUS expr .) ]
-  ! PLUS            [ shift and go to state 63 ]
-  ! MINUS           [ shift and go to state 64 ]
+  ! PLUS            [ shift and go to state 65 ]
+  ! MINUS           [ shift and go to state 66 ]
 
 
-state 84
+state 86
 
     (16) expr -> expr PROD expr .
     (14) expr -> expr . PLUS expr
@@ -1789,17 +1851,17 @@ state 84
     RPAREN          reduce using rule 16 (expr -> expr PROD expr .)
     LOOP            reduce using rule 16 (expr -> expr PROD expr .)
     THEN            reduce using rule 16 (expr -> expr PROD expr .)
-    EXP             shift and go to state 67
+    EXP             shift and go to state 69
 
   ! EXP             [ reduce using rule 16 (expr -> expr PROD expr .) ]
-  ! PLUS            [ shift and go to state 63 ]
-  ! MINUS           [ shift and go to state 64 ]
-  ! PROD            [ shift and go to state 65 ]
-  ! DIV             [ shift and go to state 66 ]
-  ! MOD             [ shift and go to state 68 ]
+  ! PLUS            [ shift and go to state 65 ]
+  ! MINUS           [ shift and go to state 66 ]
+  ! PROD            [ shift and go to state 67 ]
+  ! DIV             [ shift and go to state 68 ]
+  ! MOD             [ shift and go to state 70 ]
 
 
-state 85
+state 87
 
     (17) expr -> expr DIV expr .
     (14) expr -> expr . PLUS expr
@@ -1832,17 +1894,17 @@ state 85
     RPAREN          reduce using rule 17 (expr -> expr DIV expr .)
     LOOP            reduce using rule 17 (expr -> expr DIV expr .)
     THEN            reduce using rule 17 (expr -> expr DIV expr .)
-    EXP             shift and go to state 67
+    EXP             shift and go to state 69
 
   ! EXP             [ reduce using rule 17 (expr -> expr DIV expr .) ]
-  ! PLUS            [ shift and go to state 63 ]
-  ! MINUS           [ shift and go to state 64 ]
-  ! PROD            [ shift and go to state 65 ]
-  ! DIV             [ shift and go to state 66 ]
-  ! MOD             [ shift and go to state 68 ]
+  ! PLUS            [ shift and go to state 65 ]
+  ! MINUS           [ shift and go to state 66 ]
+  ! PROD            [ shift and go to state 67 ]
+  ! DIV             [ shift and go to state 68 ]
+  ! MOD             [ shift and go to state 70 ]
 
 
-state 86
+state 88
 
     (18) expr -> expr EXP expr .
     (14) expr -> expr . PLUS expr
@@ -1875,17 +1937,17 @@ state 86
     RPAREN          reduce using rule 18 (expr -> expr EXP expr .)
     LOOP            reduce using rule 18 (expr -> expr EXP expr .)
     THEN            reduce using rule 18 (expr -> expr EXP expr .)
-    EXP             shift and go to state 67
+    EXP             shift and go to state 69
 
   ! EXP             [ reduce using rule 18 (expr -> expr EXP expr .) ]
-  ! PLUS            [ shift and go to state 63 ]
-  ! MINUS           [ shift and go to state 64 ]
-  ! PROD            [ shift and go to state 65 ]
-  ! DIV             [ shift and go to state 66 ]
-  ! MOD             [ shift and go to state 68 ]
+  ! PLUS            [ shift and go to state 65 ]
+  ! MINUS           [ shift and go to state 66 ]
+  ! PROD            [ shift and go to state 67 ]
+  ! DIV             [ shift and go to state 68 ]
+  ! MOD             [ shift and go to state 70 ]
 
 
-state 87
+state 89
 
     (19) expr -> expr MOD expr .
     (14) expr -> expr . PLUS expr
@@ -1918,17 +1980,17 @@ state 87
     RPAREN          reduce using rule 19 (expr -> expr MOD expr .)
     LOOP            reduce using rule 19 (expr -> expr MOD expr .)
     THEN            reduce using rule 19 (expr -> expr MOD expr .)
-    EXP             shift and go to state 67
+    EXP             shift and go to state 69
 
   ! EXP             [ reduce using rule 19 (expr -> expr MOD expr .) ]
-  ! PLUS            [ shift and go to state 63 ]
-  ! MINUS           [ shift and go to state 64 ]
-  ! PROD            [ shift and go to state 65 ]
-  ! DIV             [ shift and go to state 66 ]
-  ! MOD             [ shift and go to state 68 ]
+  ! PLUS            [ shift and go to state 65 ]
+  ! MINUS           [ shift and go to state 66 ]
+  ! PROD            [ shift and go to state 67 ]
+  ! DIV             [ shift and go to state 68 ]
+  ! MOD             [ shift and go to state 70 ]
 
 
-state 88
+state 90
 
     (20) expr -> LPAREN expr RPAREN .
 
@@ -1958,10 +2020,10 @@ state 88
     THEN            reduce using rule 20 (expr -> LPAREN expr RPAREN .)
 
 
-state 89
+state 91
 
-    (46) statement -> IF condition THEN body . FI condition
-    (47) statement -> IF condition THEN body . ELSE body FI condition
+    (47) statement -> IF condition THEN body . FI condition
+    (48) statement -> IF condition THEN body . ELSE body FI condition
     (9) body -> body . statement
     (23) statement -> . type ID
     (24) statement -> . ID PLUSEQUALS expr
@@ -1970,23 +2032,24 @@ state 89
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (12) type -> . INT
     (13) type -> . STACK
 
-    FI              shift and go to state 99
-    ELSE            shift and go to state 100
+    FI              shift and go to state 101
+    ELSE            shift and go to state 102
     ID              shift and go to state 13
     LOCAL           shift and go to state 18
     DELOCAL         shift and go to state 19
@@ -1997,182 +2060,161 @@ state 89
     INT             shift and go to state 11
     STACK           shift and go to state 12
 
-    statement                      shift and go to state 34
+    statement                      shift and go to state 35
     type                           shift and go to state 17
-
-state 90
-
-    (37) arg_list -> arg_list COMMA ID .
-
-    RPAREN          reduce using rule 37 (arg_list -> arg_list COMMA ID .)
-    COMMA           reduce using rule 37 (arg_list -> arg_list COMMA ID .)
-
-
-state 91
-
-    (32) value -> ID .
-
-    ID              reduce using rule 32 (value -> ID .)
-    LOCAL           reduce using rule 32 (value -> ID .)
-    DELOCAL         reduce using rule 32 (value -> ID .)
-    CALL            reduce using rule 32 (value -> ID .)
-    UNCALL          reduce using rule 32 (value -> ID .)
-    FROM            reduce using rule 32 (value -> ID .)
-    IF              reduce using rule 32 (value -> ID .)
-    INT             reduce using rule 32 (value -> ID .)
-    STACK           reduce using rule 32 (value -> ID .)
-    PROCEDURE       reduce using rule 32 (value -> ID .)
-    $end            reduce using rule 32 (value -> ID .)
-    UNTIL           reduce using rule 32 (value -> ID .)
-    FI              reduce using rule 32 (value -> ID .)
-    ELSE            reduce using rule 32 (value -> ID .)
-
 
 state 92
 
-    (33) statement -> LOCAL type ID EQUALS value .
+    (38) arg_list -> arg_list COMMA ID .
 
-    ID              reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    LOCAL           reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    DELOCAL         reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    CALL            reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    UNCALL          reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    FROM            reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    IF              reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    INT             reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    STACK           reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    PROCEDURE       reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    $end            reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    UNTIL           reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    FI              reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
-    ELSE            reduce using rule 33 (statement -> LOCAL type ID EQUALS value .)
+    RPAREN          reduce using rule 38 (arg_list -> arg_list COMMA ID .)
+    COMMA           reduce using rule 38 (arg_list -> arg_list COMMA ID .)
 
 
 state 93
 
-    (30) value -> NUMBER .
+    (33) value -> ID .
 
-    ID              reduce using rule 30 (value -> NUMBER .)
-    LOCAL           reduce using rule 30 (value -> NUMBER .)
-    DELOCAL         reduce using rule 30 (value -> NUMBER .)
-    CALL            reduce using rule 30 (value -> NUMBER .)
-    UNCALL          reduce using rule 30 (value -> NUMBER .)
-    FROM            reduce using rule 30 (value -> NUMBER .)
-    IF              reduce using rule 30 (value -> NUMBER .)
-    INT             reduce using rule 30 (value -> NUMBER .)
-    STACK           reduce using rule 30 (value -> NUMBER .)
-    PROCEDURE       reduce using rule 30 (value -> NUMBER .)
-    $end            reduce using rule 30 (value -> NUMBER .)
-    UNTIL           reduce using rule 30 (value -> NUMBER .)
-    FI              reduce using rule 30 (value -> NUMBER .)
-    ELSE            reduce using rule 30 (value -> NUMBER .)
+    ID              reduce using rule 33 (value -> ID .)
+    LOCAL           reduce using rule 33 (value -> ID .)
+    DELOCAL         reduce using rule 33 (value -> ID .)
+    CALL            reduce using rule 33 (value -> ID .)
+    UNCALL          reduce using rule 33 (value -> ID .)
+    FROM            reduce using rule 33 (value -> ID .)
+    IF              reduce using rule 33 (value -> ID .)
+    INT             reduce using rule 33 (value -> ID .)
+    STACK           reduce using rule 33 (value -> ID .)
+    PROCEDURE       reduce using rule 33 (value -> ID .)
+    $end            reduce using rule 33 (value -> ID .)
+    UNTIL           reduce using rule 33 (value -> ID .)
+    FI              reduce using rule 33 (value -> ID .)
+    ELSE            reduce using rule 33 (value -> ID .)
 
 
 state 94
 
-    (31) value -> NIL .
+    (34) statement -> LOCAL type ID EQUALS value .
 
-    ID              reduce using rule 31 (value -> NIL .)
-    LOCAL           reduce using rule 31 (value -> NIL .)
-    DELOCAL         reduce using rule 31 (value -> NIL .)
-    CALL            reduce using rule 31 (value -> NIL .)
-    UNCALL          reduce using rule 31 (value -> NIL .)
-    FROM            reduce using rule 31 (value -> NIL .)
-    IF              reduce using rule 31 (value -> NIL .)
-    INT             reduce using rule 31 (value -> NIL .)
-    STACK           reduce using rule 31 (value -> NIL .)
-    PROCEDURE       reduce using rule 31 (value -> NIL .)
-    $end            reduce using rule 31 (value -> NIL .)
-    UNTIL           reduce using rule 31 (value -> NIL .)
-    FI              reduce using rule 31 (value -> NIL .)
-    ELSE            reduce using rule 31 (value -> NIL .)
+    ID              reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    LOCAL           reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    DELOCAL         reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    CALL            reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    UNCALL          reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    FROM            reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    IF              reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    INT             reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    STACK           reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    PROCEDURE       reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    $end            reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    UNTIL           reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    FI              reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
+    ELSE            reduce using rule 34 (statement -> LOCAL type ID EQUALS value .)
 
 
 state 95
 
-    (34) statement -> DELOCAL type ID EQUALS value .
+    (31) value -> NUMBER .
 
-    ID              reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    LOCAL           reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    DELOCAL         reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    CALL            reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    UNCALL          reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    FROM            reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    IF              reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    INT             reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    STACK           reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    PROCEDURE       reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    $end            reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    UNTIL           reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    FI              reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
-    ELSE            reduce using rule 34 (statement -> DELOCAL type ID EQUALS value .)
+    ID              reduce using rule 31 (value -> NUMBER .)
+    LOCAL           reduce using rule 31 (value -> NUMBER .)
+    DELOCAL         reduce using rule 31 (value -> NUMBER .)
+    CALL            reduce using rule 31 (value -> NUMBER .)
+    UNCALL          reduce using rule 31 (value -> NUMBER .)
+    FROM            reduce using rule 31 (value -> NUMBER .)
+    IF              reduce using rule 31 (value -> NUMBER .)
+    INT             reduce using rule 31 (value -> NUMBER .)
+    STACK           reduce using rule 31 (value -> NUMBER .)
+    PROCEDURE       reduce using rule 31 (value -> NUMBER .)
+    $end            reduce using rule 31 (value -> NUMBER .)
+    UNTIL           reduce using rule 31 (value -> NUMBER .)
+    FI              reduce using rule 31 (value -> NUMBER .)
+    ELSE            reduce using rule 31 (value -> NUMBER .)
 
 
 state 96
 
-    (39) statement -> CALL ID LPAREN arg_list RPAREN .
+    (32) value -> NIL .
 
-    ID              reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    LOCAL           reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    DELOCAL         reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    CALL            reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    UNCALL          reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    FROM            reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    IF              reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    INT             reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    STACK           reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    PROCEDURE       reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    $end            reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    UNTIL           reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    FI              reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
-    ELSE            reduce using rule 39 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    ID              reduce using rule 32 (value -> NIL .)
+    LOCAL           reduce using rule 32 (value -> NIL .)
+    DELOCAL         reduce using rule 32 (value -> NIL .)
+    CALL            reduce using rule 32 (value -> NIL .)
+    UNCALL          reduce using rule 32 (value -> NIL .)
+    FROM            reduce using rule 32 (value -> NIL .)
+    IF              reduce using rule 32 (value -> NIL .)
+    INT             reduce using rule 32 (value -> NIL .)
+    STACK           reduce using rule 32 (value -> NIL .)
+    PROCEDURE       reduce using rule 32 (value -> NIL .)
+    $end            reduce using rule 32 (value -> NIL .)
+    UNTIL           reduce using rule 32 (value -> NIL .)
+    FI              reduce using rule 32 (value -> NIL .)
+    ELSE            reduce using rule 32 (value -> NIL .)
 
 
 state 97
 
-    (43) statement -> UNCALL ID LPAREN arg_list RPAREN .
+    (35) statement -> DELOCAL type ID EQUALS value .
 
-    ID              reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    LOCAL           reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    DELOCAL         reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    CALL            reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    UNCALL          reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    FROM            reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    IF              reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    INT             reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    STACK           reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    PROCEDURE       reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    $end            reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    UNTIL           reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    FI              reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
-    ELSE            reduce using rule 43 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    ID              reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    LOCAL           reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    DELOCAL         reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    CALL            reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    UNCALL          reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    FROM            reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    IF              reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    INT             reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    STACK           reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    PROCEDURE       reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    $end            reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    UNTIL           reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    FI              reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
+    ELSE            reduce using rule 35 (statement -> DELOCAL type ID EQUALS value .)
 
 
 state 98
 
-    (45) statement -> FROM condition LOOP body UNTIL . condition
-    (44) condition -> . expr EQUALS expr
-    (14) expr -> . expr PLUS expr
-    (15) expr -> . expr MINUS expr
-    (16) expr -> . expr PROD expr
-    (17) expr -> . expr DIV expr
-    (18) expr -> . expr EXP expr
-    (19) expr -> . expr MOD expr
-    (20) expr -> . LPAREN expr RPAREN
-    (21) expr -> . NUMBER
-    (22) expr -> . ID
+    (40) statement -> CALL ID LPAREN arg_list RPAREN .
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    ID              reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    LOCAL           reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    DELOCAL         reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    CALL            reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    UNCALL          reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    FROM            reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    IF              reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    INT             reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    STACK           reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    PROCEDURE       reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    $end            reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    UNTIL           reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    FI              reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
+    ELSE            reduce using rule 40 (statement -> CALL ID LPAREN arg_list RPAREN .)
 
-    condition                      shift and go to state 101
-    expr                           shift and go to state 41
 
 state 99
 
-    (46) statement -> IF condition THEN body FI . condition
-    (44) condition -> . expr EQUALS expr
+    (44) statement -> UNCALL ID LPAREN arg_list RPAREN .
+
+    ID              reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    LOCAL           reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    DELOCAL         reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    CALL            reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    UNCALL          reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    FROM            reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    IF              reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    INT             reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    STACK           reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    PROCEDURE       reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    $end            reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    UNTIL           reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    FI              reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+    ELSE            reduce using rule 44 (statement -> UNCALL ID LPAREN arg_list RPAREN .)
+
+
+state 100
+
+    (46) statement -> FROM condition LOOP body UNTIL . condition
+    (45) condition -> . expr EQUALS expr
     (14) expr -> . expr PLUS expr
     (15) expr -> . expr MINUS expr
     (16) expr -> . expr PROD expr
@@ -2183,16 +2225,37 @@ state 99
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    condition                      shift and go to state 102
-    expr                           shift and go to state 41
+    condition                      shift and go to state 103
+    expr                           shift and go to state 42
 
-state 100
+state 101
 
-    (47) statement -> IF condition THEN body ELSE . body FI condition
+    (47) statement -> IF condition THEN body FI . condition
+    (45) condition -> . expr EQUALS expr
+    (14) expr -> . expr PLUS expr
+    (15) expr -> . expr MINUS expr
+    (16) expr -> . expr PROD expr
+    (17) expr -> . expr DIV expr
+    (18) expr -> . expr EXP expr
+    (19) expr -> . expr MOD expr
+    (20) expr -> . LPAREN expr RPAREN
+    (21) expr -> . NUMBER
+    (22) expr -> . ID
+
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
+
+    condition                      shift and go to state 104
+    expr                           shift and go to state 42
+
+state 102
+
+    (48) statement -> IF condition THEN body ELSE . body FI condition
     (8) body -> . statement
     (9) body -> . body statement
     (10) body -> . empty
@@ -2203,18 +2266,19 @@ state 100
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (11) empty -> .
     (12) type -> . INT
     (13) type -> . STACK
@@ -2249,54 +2313,54 @@ state 100
   ! INT             [ reduce using rule 11 (empty -> .) ]
   ! STACK           [ reduce using rule 11 (empty -> .) ]
 
-    body                           shift and go to state 103
+    body                           shift and go to state 105
     statement                      shift and go to state 15
     empty                          shift and go to state 16
     type                           shift and go to state 17
 
-state 101
-
-    (45) statement -> FROM condition LOOP body UNTIL condition .
-
-    ID              reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    LOCAL           reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    DELOCAL         reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    CALL            reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    UNCALL          reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    FROM            reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    IF              reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    INT             reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    STACK           reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    PROCEDURE       reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    $end            reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    UNTIL           reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    FI              reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-    ELSE            reduce using rule 45 (statement -> FROM condition LOOP body UNTIL condition .)
-
-
-state 102
-
-    (46) statement -> IF condition THEN body FI condition .
-
-    ID              reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    LOCAL           reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    DELOCAL         reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    CALL            reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    UNCALL          reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    FROM            reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    IF              reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    INT             reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    STACK           reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    PROCEDURE       reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    $end            reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    UNTIL           reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    FI              reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-    ELSE            reduce using rule 46 (statement -> IF condition THEN body FI condition .)
-
-
 state 103
 
-    (47) statement -> IF condition THEN body ELSE body . FI condition
+    (46) statement -> FROM condition LOOP body UNTIL condition .
+
+    ID              reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    LOCAL           reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    DELOCAL         reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    CALL            reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    UNCALL          reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    FROM            reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    IF              reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    INT             reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    STACK           reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    PROCEDURE       reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    $end            reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    UNTIL           reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    FI              reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+    ELSE            reduce using rule 46 (statement -> FROM condition LOOP body UNTIL condition .)
+
+
+state 104
+
+    (47) statement -> IF condition THEN body FI condition .
+
+    ID              reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    LOCAL           reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    DELOCAL         reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    CALL            reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    UNCALL          reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    FROM            reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    IF              reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    INT             reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    STACK           reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    PROCEDURE       reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    $end            reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    UNTIL           reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    FI              reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+    ELSE            reduce using rule 47 (statement -> IF condition THEN body FI condition .)
+
+
+state 105
+
+    (48) statement -> IF condition THEN body ELSE body . FI condition
     (9) body -> body . statement
     (23) statement -> . type ID
     (24) statement -> . ID PLUSEQUALS expr
@@ -2305,22 +2369,23 @@ state 103
     (27) statement -> . ID DIVEQUALS expr
     (28) statement -> . ID EXPEQUALS expr
     (29) statement -> . ID MODEQUALS expr
-    (33) statement -> . LOCAL type ID EQUALS value
-    (34) statement -> . DELOCAL type ID EQUALS value
-    (35) statement -> . DELOCAL type ID
-    (38) statement -> . CALL ID LPAREN RPAREN
-    (39) statement -> . CALL ID LPAREN arg_list RPAREN
-    (40) statement -> . ID LPAREN RPAREN
-    (41) statement -> . ID LPAREN arg_list RPAREN
-    (42) statement -> . UNCALL ID LPAREN RPAREN
-    (43) statement -> . UNCALL ID LPAREN arg_list RPAREN
-    (45) statement -> . FROM condition LOOP body UNTIL condition
-    (46) statement -> . IF condition THEN body FI condition
-    (47) statement -> . IF condition THEN body ELSE body FI condition
+    (30) statement -> . ID SWAP expr
+    (34) statement -> . LOCAL type ID EQUALS value
+    (35) statement -> . DELOCAL type ID EQUALS value
+    (36) statement -> . DELOCAL type ID
+    (39) statement -> . CALL ID LPAREN RPAREN
+    (40) statement -> . CALL ID LPAREN arg_list RPAREN
+    (41) statement -> . ID LPAREN RPAREN
+    (42) statement -> . ID LPAREN arg_list RPAREN
+    (43) statement -> . UNCALL ID LPAREN RPAREN
+    (44) statement -> . UNCALL ID LPAREN arg_list RPAREN
+    (46) statement -> . FROM condition LOOP body UNTIL condition
+    (47) statement -> . IF condition THEN body FI condition
+    (48) statement -> . IF condition THEN body ELSE body FI condition
     (12) type -> . INT
     (13) type -> . STACK
 
-    FI              shift and go to state 104
+    FI              shift and go to state 106
     ID              shift and go to state 13
     LOCAL           shift and go to state 18
     DELOCAL         shift and go to state 19
@@ -2331,13 +2396,13 @@ state 103
     INT             shift and go to state 11
     STACK           shift and go to state 12
 
-    statement                      shift and go to state 34
+    statement                      shift and go to state 35
     type                           shift and go to state 17
 
-state 104
+state 106
 
-    (47) statement -> IF condition THEN body ELSE body FI . condition
-    (44) condition -> . expr EQUALS expr
+    (48) statement -> IF condition THEN body ELSE body FI . condition
+    (45) condition -> . expr EQUALS expr
     (14) expr -> . expr PLUS expr
     (15) expr -> . expr MINUS expr
     (16) expr -> . expr PROD expr
@@ -2348,31 +2413,31 @@ state 104
     (21) expr -> . NUMBER
     (22) expr -> . ID
 
-    LPAREN          shift and go to state 42
-    NUMBER          shift and go to state 43
-    ID              shift and go to state 44
+    LPAREN          shift and go to state 43
+    NUMBER          shift and go to state 44
+    ID              shift and go to state 45
 
-    condition                      shift and go to state 105
-    expr                           shift and go to state 41
+    condition                      shift and go to state 107
+    expr                           shift and go to state 42
 
-state 105
+state 107
 
-    (47) statement -> IF condition THEN body ELSE body FI condition .
+    (48) statement -> IF condition THEN body ELSE body FI condition .
 
-    ID              reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    LOCAL           reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    DELOCAL         reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    CALL            reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    UNCALL          reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    FROM            reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    IF              reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    INT             reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    STACK           reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    PROCEDURE       reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    $end            reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    UNTIL           reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    FI              reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
-    ELSE            reduce using rule 47 (statement -> IF condition THEN body ELSE body FI condition .)
+    ID              reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    LOCAL           reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    DELOCAL         reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    CALL            reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    UNCALL          reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    FROM            reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    IF              reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    INT             reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    STACK           reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    PROCEDURE       reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    $end            reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    UNTIL           reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    FI              reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
+    ELSE            reduce using rule 48 (statement -> IF condition THEN body ELSE body FI condition .)
 
 WARNING: 
 WARNING: Conflicts:
@@ -2395,30 +2460,30 @@ WARNING: shift/reduce conflict for FROM in state 24 resolved as shift
 WARNING: shift/reduce conflict for IF in state 24 resolved as shift
 WARNING: shift/reduce conflict for INT in state 24 resolved as shift
 WARNING: shift/reduce conflict for STACK in state 24 resolved as shift
-WARNING: shift/reduce conflict for ID in state 61 resolved as shift
-WARNING: shift/reduce conflict for LOCAL in state 61 resolved as shift
-WARNING: shift/reduce conflict for DELOCAL in state 61 resolved as shift
-WARNING: shift/reduce conflict for CALL in state 61 resolved as shift
-WARNING: shift/reduce conflict for UNCALL in state 61 resolved as shift
-WARNING: shift/reduce conflict for FROM in state 61 resolved as shift
-WARNING: shift/reduce conflict for IF in state 61 resolved as shift
-WARNING: shift/reduce conflict for INT in state 61 resolved as shift
-WARNING: shift/reduce conflict for STACK in state 61 resolved as shift
-WARNING: shift/reduce conflict for ID in state 70 resolved as shift
-WARNING: shift/reduce conflict for LOCAL in state 70 resolved as shift
-WARNING: shift/reduce conflict for DELOCAL in state 70 resolved as shift
-WARNING: shift/reduce conflict for CALL in state 70 resolved as shift
-WARNING: shift/reduce conflict for UNCALL in state 70 resolved as shift
-WARNING: shift/reduce conflict for FROM in state 70 resolved as shift
-WARNING: shift/reduce conflict for IF in state 70 resolved as shift
-WARNING: shift/reduce conflict for INT in state 70 resolved as shift
-WARNING: shift/reduce conflict for STACK in state 70 resolved as shift
-WARNING: shift/reduce conflict for ID in state 100 resolved as shift
-WARNING: shift/reduce conflict for LOCAL in state 100 resolved as shift
-WARNING: shift/reduce conflict for DELOCAL in state 100 resolved as shift
-WARNING: shift/reduce conflict for CALL in state 100 resolved as shift
-WARNING: shift/reduce conflict for UNCALL in state 100 resolved as shift
-WARNING: shift/reduce conflict for FROM in state 100 resolved as shift
-WARNING: shift/reduce conflict for IF in state 100 resolved as shift
-WARNING: shift/reduce conflict for INT in state 100 resolved as shift
-WARNING: shift/reduce conflict for STACK in state 100 resolved as shift
+WARNING: shift/reduce conflict for ID in state 63 resolved as shift
+WARNING: shift/reduce conflict for LOCAL in state 63 resolved as shift
+WARNING: shift/reduce conflict for DELOCAL in state 63 resolved as shift
+WARNING: shift/reduce conflict for CALL in state 63 resolved as shift
+WARNING: shift/reduce conflict for UNCALL in state 63 resolved as shift
+WARNING: shift/reduce conflict for FROM in state 63 resolved as shift
+WARNING: shift/reduce conflict for IF in state 63 resolved as shift
+WARNING: shift/reduce conflict for INT in state 63 resolved as shift
+WARNING: shift/reduce conflict for STACK in state 63 resolved as shift
+WARNING: shift/reduce conflict for ID in state 72 resolved as shift
+WARNING: shift/reduce conflict for LOCAL in state 72 resolved as shift
+WARNING: shift/reduce conflict for DELOCAL in state 72 resolved as shift
+WARNING: shift/reduce conflict for CALL in state 72 resolved as shift
+WARNING: shift/reduce conflict for UNCALL in state 72 resolved as shift
+WARNING: shift/reduce conflict for FROM in state 72 resolved as shift
+WARNING: shift/reduce conflict for IF in state 72 resolved as shift
+WARNING: shift/reduce conflict for INT in state 72 resolved as shift
+WARNING: shift/reduce conflict for STACK in state 72 resolved as shift
+WARNING: shift/reduce conflict for ID in state 102 resolved as shift
+WARNING: shift/reduce conflict for LOCAL in state 102 resolved as shift
+WARNING: shift/reduce conflict for DELOCAL in state 102 resolved as shift
+WARNING: shift/reduce conflict for CALL in state 102 resolved as shift
+WARNING: shift/reduce conflict for UNCALL in state 102 resolved as shift
+WARNING: shift/reduce conflict for FROM in state 102 resolved as shift
+WARNING: shift/reduce conflict for IF in state 102 resolved as shift
+WARNING: shift/reduce conflict for INT in state 102 resolved as shift
+WARNING: shift/reduce conflict for STACK in state 102 resolved as shift

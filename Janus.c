@@ -50,7 +50,9 @@ typedef struct {
     uint label[MAX_LABEL];
     char name[VAR_NAME_LENGTH]; // nome del frame (nome della procedura)
     uint addr; //indirizzo della procedure
-    uint val_IF; //bool
+    uint val_IF; //bool per vedere se la IF era vera o fare JMPF
+    int param_indices[64];
+    int param_count;
 } Frame;
 
 #define MAX_FRAMES 100
@@ -95,418 +97,477 @@ char* go_to_line(char* buffer, uint line) {
     return NULL;
 }
 
-void vm_run_BT(VM *vm, char* buffer, char* frame_name) {
-    //printf("ESEGUO: %s\n", frame_name);
-    char* original_buffer = strdup(buffer);
-    uint main_index = char_id_map_get(&FrameIndexer, frame_name); 
+void vm_run_BT(VM *vm, char* buffer, char* frame_name_init) {
 
-    //printf("main_index: %u\n", main_index);
-    //printf("addr: %u\n", vm->frames[main_index].addr);
+    // --- setup ---
+    char* original_buffer = strdup(buffer);  // copia pulita, mai modificata da strtok
 
-    if (buffer == NULL) {
-        fprintf(stderr, "ERROR: buffer is NULL\n");
+    char frame_name[VAR_NAME_LENGTH];
+    strncpy(frame_name, frame_name_init, VAR_NAME_LENGTH - 1);
+    frame_name[VAR_NAME_LENGTH - 1] = '\0';
+
+    // --- call stack locale per gestire CALL/END_PROC senza ricorsione ---
+    typedef struct {
+        char* return_ptr;
+        char  caller_frame[VAR_NAME_LENGTH];
+    } CallRecord;
+    CallRecord call_stack[MAX_FRAMES];
+    int call_top = -1;
+
+    // --- posiziona ptr all'inizio della procedura iniziale ---
+    uint start_index = char_id_map_get(&FrameIndexer, frame_name);
+    char *ptr = go_to_line(original_buffer, vm->frames[start_index].addr + 1);
+    if (!ptr) {
+        fprintf(stderr, "ERROR: indirizzo procedura '%s' non trovato\n", frame_name);
+        free(original_buffer);
         return;
     }
 
-    buffer = go_to_line(buffer, vm->frames[main_index].addr+1);
-
-    if (buffer == NULL) {
-        fprintf(stderr, "ERROR: line %u not found in buffer\n", vm->frames[main_index].addr);
-        return;
-    }
-
-    //printf("%s\n", buffer);
-    char *ptr = buffer;
+    // ================================================================
     while (*ptr != '\0') {
         char *newline = strchr(ptr, '\n');
-         if (newline != NULL) {
-            *newline = '\0';  // temporaneamente terminate la riga
-            char line_buf[512];
-            strncpy(line_buf, ptr + 6, sizeof(line_buf) - 1);
-            line_buf[sizeof(line_buf) - 1] = '\0';
-            char *firstWord = strtok(line_buf, " \t");
-            if (strcmp(firstWord, "END_PROC") == 0){
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                if (stack_size(&vm->frames[Findex].LocalVariables) > -1){
-                    perror("[VM] END_PROC: ci sono ancora variabili LOCAL non chiuse con DELOCAL!\n");
-                }
-                return;
-            } else if (strcmp(firstWord, "LOCAL") == 0){
-                char* Vtype = strtok(NULL, " \t");
-                char* Vname = strtok(NULL, " \t");
-                //printf("LOCAL %s\n", Vname);
-                char* c_Vvalue = strtok(NULL, " \t");
+        if (newline == NULL) break;
 
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, Vname);
-                Var* dst = vm->frames[Findex].vars[Vindex];
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, c_Vvalue)) {
-                    // e' un ID: copiamo il valore aggiornato al momento dell'esecuzione
-                    int SrcIndex = char_id_map_get(&vm->frames[Findex].VarIndexer, c_Vvalue);
-                    Var* src = vm->frames[Findex].vars[SrcIndex];
+        *newline = '\0';  // termina temporaneamente la riga
 
-                    if (src->T == TYPE_INT) {
-                        *(dst->value) = *(src->value);
-                    } else if (src->T == TYPE_STACK) {
-                        dst->stack_len = src->stack_len;
-                        memcpy(dst->value, src->value, src->stack_len * sizeof(int));
-                    } else perror("[VM] tentata copia su variabile PARAM\n");
-                } else {
-                    // e' un numero
+        // copia la riga in un buffer locale per strtok (non tocchiamo original_buffer)
+        char line_buf[512];
+        strncpy(line_buf, ptr + 6, sizeof(line_buf) - 1);
+        line_buf[sizeof(line_buf) - 1] = '\0';
 
-                    if (dst->T == TYPE_INT) {
-                        int Vvalue = (int) strtoul(c_Vvalue, NULL, 10);
-                        *(dst->value) = Vvalue;
-                    } else if (dst->T == TYPE_STACK) {
-                        if (strcmp(c_Vvalue, "nil") == 0) {
-                            dst->stack_len = 0; // gia' 0, ma lo resettiamo esplicitamente
-                        } else perror("[VM] Valore stack per LOCAL non compatibile!\n");
-                    } else perror("[VM] tentata copia su variabile PARAM\n");
-                }
-                
-                // push nello stack LIFO per il controllo DELOCAL
-                //printf("%d index\n",Findex);
-                //printf("PRE LOCAL SIZE= %d\n",stack_size(&vm->frames[Findex].LocalVariables));
-                stack_push(&vm->frames[Findex].LocalVariables, dst);
-                //printf("POST LOCAL SIZE= %d\n",stack_size(&vm->frames[Findex].LocalVariables));
-                //printf("%d\n",stack_size(&vm->frames[vm->frame_top].LocalVariables));
-            } else if (strcmp(firstWord, "DELOCAL") == 0){
-                char* Vtype = strtok(NULL, " \t");
-                char* Vname = strtok(NULL, " \t");
-                char* c_Vvalue = strtok(NULL, " \t");
+        char *firstWord = strtok(line_buf, " \t");
 
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name); // <-- usa frame_name
+        // ---- fine procedura ----
+        if (strcmp(firstWord, "END_PROC") == 0) {
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if (stack_size(&vm->frames[Findex].LocalVariables) > -1)
+                perror("[VM] END_PROC: variabili LOCAL non chiuse con DELOCAL!\n");
 
-                int Vvalue = 0;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, c_Vvalue)) {
-                    int SrcIndex = char_id_map_get(&vm->frames[Findex].VarIndexer, c_Vvalue);
-                    Vvalue = *(vm->frames[Findex].vars[SrcIndex]->value);
-                } else {
-                    Vvalue = (int) strtoul(c_Vvalue, NULL, 10);
-                }
+            if (call_top >= 0) {
+                // ritorno al chiamante: ripristina frame e posizione
+                *newline = '\n';
+                ptr = call_stack[call_top].return_ptr;
+                strncpy(frame_name, call_stack[call_top].caller_frame, VAR_NAME_LENGTH - 1);
+                call_top--;
+                continue;
+            } else {
+                // fine del main (o della procedura iniziale)
+                *newline = '\n';
+                break;
+            }
 
-                // TUTTO usa Findex, non vm->frame_top
-                Var *V = stack_pop(&vm->frames[Findex].LocalVariables);
-                
-                if(strcmp(Vtype, (V->T == 0 ? "int" : "stack")) == 0){
-                    if (strcmp(Vtype, "stack") == 0){
-                        if(V->stack_len == 0){
-                            if (strcmp(c_Vvalue, "nil") == 0)
-                                delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
-                                        char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
-                            else perror("[VM] DEALLOC stack deve essere nil!\n");
-                        } else perror("[VM] DEALLOC valore finale di stack diverso da quello aspettato!\n");
-                    } else if (Vvalue == *(V->value)){
-                        delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
-                                char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
-                    } else perror("[VM] DEALLOC variabile o valore finale diverso da quello aspettato!\n");
-                } else perror("[VM] DEALLOC errato (tipo o variabile)\n");
-            } else if (strcmp(firstWord, "CALL") == 0){
-                //printf("CALL\n");
-                //i link fra variabili sono gia stati fatti
-                //dobbiamo solo far JMP quella procedure
-                char* proc_name = strtok(NULL, " \t");
-                vm_run_BT(vm, original_buffer, proc_name);
-            } else if (strcmp(firstWord, "UNCALL") == 0){
-                //todo implementare reversione
-            } else if (strcmp(firstWord, "SHOW") == 0) {
-                char* ID = strtok(NULL, " \t");   // primo token dopo SHOW
-                //printf("ID: %s\n", ID);
-                char* extra = strtok(NULL, " \t"); // prova a prendere un secondo token
-                if (extra != NULL) {
-                    perror("[VM] SHOW supporta 1 sola parametro!\n");
-                }                 
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID)) {
-                    fprintf(stderr, "[VM] SHOW: variabile '%s' non definita!\n", ID);
+        // ---- chiamata a procedura ----
+        } else if (strcmp(firstWord, "CALL") == 0) {
+            char* proc_name = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, proc_name);
+            uint cur_Findex = char_id_map_get(&FrameIndexer, frame_name); // <-- salva il chiamante ORA
+
+            if (call_top + 1 >= MAX_FRAMES)
+                perror("[VM] CALL: call stack overflow!\n");
+            call_top++;
+            *newline = '\n';
+            call_stack[call_top].return_ptr = newline + 1;
+            strncpy(call_stack[call_top].caller_frame, frame_name, VAR_NAME_LENGTH - 1);
+            strncpy(frame_name, proc_name, VAR_NAME_LENGTH - 1); // da qui frame_name = callee
+
+            // 1) Pre-raccogliamo gli indici TYPE_PARAM del callee
+            int param_count   = vm->frames[Findex].param_count;
+            int *param_indices = vm->frames[Findex].param_indices;
+
+            // 2) Linking usando cur_Findex (il chiamante) invece di vm->frame_top
+            char* param = NULL;
+            int i = 0;
+            while ((param = strtok(NULL, " \t")) != NULL) {
+                if (i >= param_count) {
+                    fprintf(stderr, "ERROR: too many parameters for '%s'\n", proc_name);
                     exit(EXIT_FAILURE);
                 }
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
-                if (vm->frames[Findex].vars[Vindex]->T == TYPE_INT)//INT
-                    printf("%s: %d\n", ID, *(vm->frames[Findex].vars[Vindex]->value));                    
-                else if (vm->frames[Findex].vars[Vindex]->T == TYPE_STACK){
-                    Var* sv = vm->frames[Findex].vars[Vindex];
-                    printf("%s: [", ID);
-                    for (size_t k = 0; k < sv->stack_len; k++) {
-                        printf("%d", sv->value[k]);
-                        if (k + 1 < sv->stack_len) printf(", ");
-                    }
-                    printf("]\n");
-                } else perror("[VM] ERRORE show su variabile parametro non linkata!\n");
-            } else if (strcmp(firstWord, "PUSHEQ") == 0){
-                char* ID = strtok(NULL, " \t");
-                char* C_Vvalue = strtok(NULL, " \t");
-
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
-
-                if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT){
-                    perror("[VM] Operatore non supportato su stack!\n");
+                int j = param_indices[i];
+                if (!char_id_map_exists(&vm->frames[cur_Findex].VarIndexer, param)) {
+                    fprintf(stderr, "[VM] CALL: '%s' non definito nel frame chiamante!\n", param);
+                    exit(EXIT_FAILURE);
                 }
-
-                int Vvalue;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                    uint V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                    Vvalue = *(vm->frames[Findex].vars[V2index]->value);
-                } else {
-                    Vvalue = (int) strtoul(C_Vvalue, NULL, 10);
+                int VtoLink_index = char_id_map_get(&vm->frames[cur_Findex].VarIndexer, param);
+                if (vm->frames[cur_Findex].vars[VtoLink_index] == NULL) {
+                    fprintf(stderr, "[VM] CALL: '%s' è NULL nel frame chiamante!\n", param);
+                    exit(EXIT_FAILURE);
                 }
+                vm->frames[Findex].vars[j] = vm->frames[cur_Findex].vars[VtoLink_index];
+                i++;
+            }
+            if (i != param_count) {
+                fprintf(stderr, "ERROR: attesi %d params, ricevuti %d per '%s'\n",
+                        param_count, i, proc_name);
+                exit(EXIT_FAILURE);
+            }
 
-                *(vm->frames[Findex].vars[Vindex]->value) += Vvalue;
-            } else if (strcmp(firstWord, "MINEQ") == 0){
-                char* ID = strtok(NULL, " \t");
-                char* C_Vvalue = strtok(NULL, " \t");
+            ptr = go_to_line(original_buffer, vm->frames[Findex].addr + 1);
+            if (!ptr) perror("[VM] CALL: indirizzo procedura non trovato!\n");
+            continue;
+        } else if (strcmp(firstWord, "UNCALL") == 0) {
+            // TODO: reversione
+        } else if (strcmp(firstWord, "LOCAL") == 0) {
+    char* Vtype    = strtok(NULL, " \t");
+    char* Vname    = strtok(NULL, " \t");
+    char* c_Vvalue = strtok(NULL, " \t");
 
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+    uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+    uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, Vname);
 
-                if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT){
-                    perror("[VM] Operatore non supportato su stack!\n");
-                }
+    // alloca sempre: DELOCAL azzera lo slot, LOCAL rialloca
+    vm->frames[Findex].vars[Vindex] = malloc(sizeof(Var));
+    memset(vm->frames[Findex].vars[Vindex], 0, sizeof(Var));
 
-                int Vvalue;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                    uint V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                    Vvalue = *(vm->frames[Findex].vars[V2index]->value);
-                } else {
-                    Vvalue = (int) strtoul(C_Vvalue, NULL, 10);
-                }
+    if (strcmp(Vtype, "int") == 0) {
+        vm->frames[Findex].vars[Vindex]->T = TYPE_INT;
+        vm->frames[Findex].vars[Vindex]->value = malloc(sizeof(int));
+        *(vm->frames[Findex].vars[Vindex]->value) = 0;
+    } else if (strcmp(Vtype, "stack") == 0) {
+        vm->frames[Findex].vars[Vindex]->T = TYPE_STACK;
+        vm->frames[Findex].vars[Vindex]->stack_len = 0;
+        vm->frames[Findex].vars[Vindex]->value = malloc(VAR_STACK_MAX_SIZE * sizeof(int));
+    } else perror("[VM] LOCAL: tipo non esistente\n");
 
-                *(vm->frames[Findex].vars[Vindex]->value) -= Vvalue;
-            } else if (strcmp(firstWord, "PRODEQ") == 0){
-                char* ID = strtok(NULL, " \t");
-                char* C_Vvalue = strtok(NULL, " \t");
+    strncpy(vm->frames[Findex].vars[Vindex]->name, Vname, VAR_NAME_LENGTH - 1);
+    vm->frames[Findex].vars[Vindex]->name[VAR_NAME_LENGTH - 1] = '\0';
+    vm->frames[Findex].vars[Vindex]->is_local = 1;
 
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+    if (Vindex >= vm->frames[Findex].var_count)
+        vm->frames[Findex].var_count = Vindex + 1;
 
-                if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT){
-                    perror("[VM] Operatore non supportato su stack!\n");
-                }
+    Var* dst = vm->frames[Findex].vars[Vindex];
 
-                int Vvalue;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                    uint V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                    Vvalue = *(vm->frames[Findex].vars[V2index]->value);
-                } else {
-                    Vvalue = (int) strtoul(C_Vvalue, NULL, 10);
-                }
-
-                *(vm->frames[Findex].vars[Vindex]->value) *= Vvalue;
-            } else if (strcmp(firstWord, "DIVEQ") == 0){
-                char* ID = strtok(NULL, " \t");
-                char* C_Vvalue = strtok(NULL, " \t");
-
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
-
-                if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT){
-                    perror("[VM] Operatore non supportato su stack!\n");
-                }
-
-                int Vvalue;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                    uint V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                    Vvalue = *(vm->frames[Findex].vars[V2index]->value);
-                } else {
-                    Vvalue = (int) strtoul(C_Vvalue, NULL, 10);
-                }
-
-                if (Vvalue == 0) perror("[VM] Divisione per zero!\n");
-                *(vm->frames[Findex].vars[Vindex]->value) /= Vvalue;
-            } else if (strcmp(firstWord, "MODEQ") == 0){
-                char* ID = strtok(NULL, " \t");
-                char* C_Vvalue = strtok(NULL, " \t");
-
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
-
-                if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT){
-                    perror("[VM] Operatore non supportato su stack!\n");
-                }
-
-                int Vvalue;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                    uint V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                    Vvalue = *(vm->frames[Findex].vars[V2index]->value);
-                } else {
-                    Vvalue = (int) strtoul(C_Vvalue, NULL, 10);
-                }
-
-                if (Vvalue == 0) perror("[VM] Modulo per zero!\n");
-                *(vm->frames[Findex].vars[Vindex]->value) %= Vvalue;
-            } else if (strcmp(firstWord, "EXPEQ") == 0) {
-                char* ID = strtok(NULL, " \t");
-                char* C_Vvalue = strtok(NULL, " \t");
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
-
-                if (vm->frames[Findex].vars[Vindex]->T == TYPE_INT) {
-                    int Vvalue;
-
-                    // controlliamo se è una variabile o un numero
-                    if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                        uint SrcIndex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                        Vvalue = *(vm->frames[Findex].vars[SrcIndex]->value);
-                    } else {
-                        Vvalue = (int) strtoul(C_Vvalue, NULL, 10);
-                    }
-
-                    int old_value = *(vm->frames[Findex].vars[Vindex]->value);
-                    int result = 1;
-                    for (int i = 0; i < Vvalue; i++) {
-                        result *= old_value;
-                    }
-                    *(vm->frames[Findex].vars[Vindex]->value) = result;
-
-                } else {
-                    perror("[VM] Operatore EXPEQ non supportato su stack!\n");
-                }
-            } else if (strcmp(firstWord, "PUSH") == 0) {
-                char* C_Vvalue = strtok(NULL, " \t");   // variabile da pushare
-                char* C_stack  = strtok(NULL, " \t");   // stack destinazione
-                char* C_VvalueTEST = strtok(NULL, " \t");
-                if (C_VvalueTEST != NULL)
-                    perror("[VM] troppi parametri per PUSH!\n");
-
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-
-                // 1) Risolvi il valore da pushare (ID o letterale)
-                int value_to_push;
-                if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
-                    uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
-                    Var* src_var = vm->frames[Findex].vars[Vindex];
-                    value_to_push = *(src_var->value);
-
-                    // Azzeriamo x per il trasferimento reversibile
-                    *(src_var->value) = 0;
-                } else {
-                    value_to_push = (int) strtoul(C_Vvalue, NULL, 10);
-                }
-
-                // 2) Pusha sullo stack destinazione
-                if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, C_stack))
-                    perror("[VM] PUSH: stack destinazione non trovato!\n");
-
-                uint Sindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_stack);
-                Var* stack_var = vm->frames[Findex].vars[Sindex];
-
-                if (stack_var->T != TYPE_STACK)
-                    perror("[VM] PUSH: la destinazione non e' uno stack!\n");
-
-                stack_var->value = realloc(stack_var->value, (stack_var->stack_len + 1) * sizeof(int));
-                if (!stack_var->value) perror("realloc failed");
-                stack_var->value[stack_var->stack_len] = value_to_push;
-                stack_var->stack_len++;
-            } else if (strcmp(firstWord, "POP") == 0) {
-                // pop(x, s): x += valore estratto dalla cima dello stack s
-                char* C_Vdest  = strtok(NULL, " \t");   // variabile destinazione (x)
-                char* C_stack  = strtok(NULL, " \t");   // stack sorgente (s)
-                char* C_extraTEST = strtok(NULL, " \t");
-                if (C_extraTEST != NULL)
-                    perror("[VM] troppi parametri per POP!\n");
-
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-
-                // 1) Trova lo stack sorgente
-                if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, C_stack))
-                    perror("[VM] POP: stack sorgente non trovato!\n");
-                uint Sindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_stack);
-                Var* stack_var = vm->frames[Findex].vars[Sindex];
-                if (stack_var->T != TYPE_STACK)
-                    perror("[VM] POP: la sorgente non e' uno stack!\n");
-                if (stack_var->stack_len == 0)
-                    perror("[VM] POP: stack vuoto!\n");
-
-                // 2) Estrai il valore dalla cima (top = stack_len - 1)
-                stack_var->stack_len--;
-                int popped_value = stack_var->value[stack_var->stack_len];
-                stack_var->value = realloc(stack_var->value, stack_var->stack_len * sizeof(int));
-                // nota: se stack_len == 0, realloc con size 0 e' implementation-defined; potresti usare free+NULL
-
-                // 3) Somma il valore estratto alla variabile destinazione (x += popped)
-                if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vdest))
-                    perror("[VM] POP: variabile destinazione non trovata!\n");
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vdest);
-                Var* dest_var = vm->frames[Findex].vars[Vindex];
-                *(dest_var->value) += popped_value;   // x += pop(s)
-            } else if (strcmp(firstWord, "EVAL") == 0) {
-                //printf("EVAL\n");
-                //controlliamo se il valore dato dal utente sia uguale a quello di runtime attuale
-                char* ID = strtok(NULL, " \t"); 
-                char* c_CValue = strtok(NULL, " \t"); 
-                //printf("ID: %s=%s\n", ID, c_CValue);
-                int Vvalue = (int) strtoul(c_CValue, NULL, 10);
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
-                    perror("[VM] EVAL di variabile non esistente a runtime!\n");
-                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
-                //printf("EVAL %d =? %d\n", *(vm->frames[Findex].vars[Vindex]->value), Vvalue);
-                vm->frames[Findex].val_IF = (*(vm->frames[Findex].vars[Vindex]->value) == Vvalue);
-                //printf("EVAL: %d\n", vm->frames[Findex].val_IF);
-            } else if (strcmp(firstWord, "JMPF") == 0){
-                //printf("JMPF\n");
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                if (!vm->frames[Findex].val_IF){
-                    char* c_LABEL = strtok(NULL, " \t"); 
-                    uint Lindex = char_id_map_get(&vm->frames[Findex].LabelIndexer, c_LABEL);
-                    *newline = '\n';
-                    //printf("JMPF to %s!\n", c_LABEL);
-                    ptr = go_to_line(original_buffer, vm->frames[Findex].label[Lindex]+1);
-                    continue;  // stesso fix
-                }
-            } else if (strcmp(firstWord, "JMP") == 0){
-                char* c_LABEL = strtok(NULL, " \t"); 
-                //printf("JMP %s\n", c_LABEL);
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-                uint Lindex = char_id_map_get(&vm->frames[Findex].LabelIndexer, c_LABEL);
-                *newline = '\n';  // ripristina prima di riposizionare
-                //printf("\t BUFFER \n%s\n", original_buffer);
-                ptr = go_to_line(original_buffer, vm->frames[Findex].label[Lindex]+1);
-                if (!ptr) perror("ERRORE buffer\n");
-                continue;  // riprende il while dal nuovo ptr, niente ricorsione
-            } else if (strcmp(firstWord, "ASSERT") == 0) {
-                char *ID1 = strtok(NULL, " \t");
-                char *ID2 = strtok(NULL, " \t");
-
-                if (!ID1 || !ID2) {
-                    fprintf(stderr, "[VM] ASSERT: argomenti mancanti\n");
-                    continue;
-                }
-                if(!char_id_map_exists(&FrameIndexer, frame_name))
-                    perror("[VM] Frame non trovato per ASSERT!\n");
-                uint Findex = char_id_map_get(&FrameIndexer, frame_name);
-
-                /* Risolve il valore di un token: numero letterale oppure variabile */
-                char *endptr1, *endptr2;
-                unsigned long val1 = strtoul(ID1, &endptr1, 10);
-                unsigned long val2 = strtoul(ID2, &endptr2, 10);
-
-                if (*endptr1 != '\0') {
-                    /* ID1 è una variabile: leggi il suo valore */
-                    if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID1))
-                        perror("[VM] ASSET fi prima variabile non inizializzata");
-                    int V1index = char_id_map_get(&vm->frames[Findex].VarIndexer, ID1);
-                    val1 = *(vm->frames[Findex].vars[V1index]->value);
-                }
-
-                if (*endptr2 != '\0') {
-                    /* ID2 è una variabile: leggi il suo valore */
-                    if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID2))
-                        perror("[VM] ASSET fi seconda variabile non inizializzata");
-                    int V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, ID2);
-                    val2 = *(vm->frames[Findex].vars[V2index]->value);
-                }
-                //printf("EVAL %lu = %lu\n", val1, val2); 
-                if (val1 != val2) {
-                    perror("[VM] ASSERT valori fi diversi da quelli a runtime!\n");
-                }
-            } 
+    // assegnazione valore iniziale
+    if (char_id_map_exists(&vm->frames[Findex].VarIndexer, c_Vvalue)) {
+        int SrcIndex = char_id_map_get(&vm->frames[Findex].VarIndexer, c_Vvalue);
+        Var* src = vm->frames[Findex].vars[SrcIndex];
+        if (src->T == TYPE_INT)
+            *(dst->value) = *(src->value);
+        else if (src->T == TYPE_STACK) {
+            dst->stack_len = src->stack_len;
+            memcpy(dst->value, src->value, src->stack_len * sizeof(int));
+        } else perror("[VM] LOCAL: copia da PARAM non linkato\n");
+    } else {
+        if (dst->T == TYPE_INT) {
+            *(dst->value) = (int) strtol(c_Vvalue, NULL, 10);
+        } else if (dst->T == TYPE_STACK) {
+            if (strcmp(c_Vvalue, "nil") == 0)
+                dst->stack_len = 0;
+            else perror("[VM] LOCAL: valore stack non compatibile\n");
         }
-        *newline = '\n';  // ripristina il carattere
+    }
+
+    stack_push(&vm->frames[Findex].LocalVariables, dst);} else if (strcmp(firstWord, "DELOCAL") == 0) {
+            char* Vtype   = strtok(NULL, " \t");
+            char* Vname   = strtok(NULL, " \t");
+            char* c_Vvalue = strtok(NULL, " \t");
+
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            int Vvalue = 0;
+            if (char_id_map_exists(&vm->frames[Findex].VarIndexer, c_Vvalue)) {
+                int SrcIndex = char_id_map_get(&vm->frames[Findex].VarIndexer, c_Vvalue);
+                Vvalue = *(vm->frames[Findex].vars[SrcIndex]->value);
+            } else {
+                Vvalue = (int) strtoul(c_Vvalue, NULL, 10);
+            }
+
+            Var *V = stack_pop(&vm->frames[Findex].LocalVariables);
+            if (strcmp(Vtype, (V->T == 0 ? "int" : "stack")) == 0) {
+                if (strcmp(Vtype, "stack") == 0) {
+                    if (V->stack_len == 0) {
+                        if (strcmp(c_Vvalue, "nil") == 0)
+                            delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
+                                       char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
+                        else perror("[VM] DEALLOC stack deve essere nil!\n");
+                    } else perror("[VM] DEALLOC valore finale di stack diverso da quello aspettato!\n");
+                } else if (Vvalue == *(V->value)) {
+                    delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
+                               char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
+                } else {
+                    printf("[VM] DEALLOC variabile o valore finale diverso da quello aspettato! (%d, %d)\n", Vvalue, *(V->value));
+                    exit(1);
+                }
+            } else perror("[VM] DEALLOC errato (tipo o variabile)\n");
+
+        } else if (strcmp(firstWord, "SHOW") == 0) {
+            char* ID = strtok(NULL, " \t");
+            if (strtok(NULL, " \t") != NULL) perror("[VM] SHOW: troppi parametri!\n");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID)) {
+                fprintf(stderr, "[VM] SHOW: variabile '%s' non definita!\n", ID);
+                exit(EXIT_FAILURE);
+            }
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+            if (vm->frames[Findex].vars[Vindex] == NULL) {
+                fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+                exit(EXIT_FAILURE);
+            }
+            if (vm->frames[Findex].vars[Vindex]->T == TYPE_INT)
+                printf("%s: %d\n", ID, *(vm->frames[Findex].vars[Vindex]->value));
+            else if (vm->frames[Findex].vars[Vindex]->T == TYPE_STACK) {
+                Var* sv = vm->frames[Findex].vars[Vindex];
+                printf("%s: [", ID);
+                for (size_t k = 0; k < sv->stack_len; k++) {
+                    printf("%d", sv->value[k]);
+                    if (k + 1 < sv->stack_len) printf(", ");
+                }
+                printf("]\n");
+            } else perror("[VM] SHOW su variabile PARAM non linkata!\n");
+
+        } else if (strcmp(firstWord, "PUSHEQ") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* C_Vvalue = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] PUSHEQ su variabile iniziale non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT) perror("[VM] PUSHEQ non su INT!\n");
+            int Vvalue = char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)
+                ? *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue)]->value)
+                : (int) strtoul(C_Vvalue, NULL, 10);
+            *(vm->frames[Findex].vars[Vindex]->value) += Vvalue;
+
+        } else if (strcmp(firstWord, "MINEQ") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* C_Vvalue = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] MINEQ su variabile iniziale non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            
+            if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT) perror("[VM] MINEQ non su INT!\n");
+            int Vvalue = char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)
+                ? *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue)]->value)
+                : (int) strtoul(C_Vvalue, NULL, 10);
+            
+            //printf("%d %d\n", *(vm->frames[Findex].vars[Vindex]->value), Vvalue);
+            *(vm->frames[Findex].vars[Vindex]->value) -= Vvalue;
+
+        } else if (strcmp(firstWord, "PRODEQ") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* C_Vvalue = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] PRODEQ su variabile iniziale non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT) perror("[VM] PRODEQ non su INT!\n");
+            int Vvalue = char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)
+                ? *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue)]->value)
+                : (int) strtoul(C_Vvalue, NULL, 10);
+            *(vm->frames[Findex].vars[Vindex]->value) *= Vvalue;
+
+        } else if (strcmp(firstWord, "DIVEQ") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* C_Vvalue = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] DIVEQ su variabile iniziale non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT) perror("[VM] DIVEQ non su INT!\n");
+            int Vvalue = char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)
+                ? *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue)]->value)
+                : (int) strtoul(C_Vvalue, NULL, 10);
+            if (Vvalue == 0) perror("[VM] Divisione per zero!\n");
+            *(vm->frames[Findex].vars[Vindex]->value) /= Vvalue;
+
+        } else if (strcmp(firstWord, "MODEQ") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* C_Vvalue = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] MODEQ su variabile iniziale non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT) perror("[VM] MODEQ non su INT!\n");
+            int Vvalue = char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)
+                ? *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue)]->value)
+                : (int) strtoul(C_Vvalue, NULL, 10);
+            if (Vvalue == 0) perror("[VM] Modulo per zero!\n");
+            *(vm->frames[Findex].vars[Vindex]->value) %= Vvalue;
+
+        } else if (strcmp(firstWord, "EXPEQ") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* C_Vvalue = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if(!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] EXPEQ su variabile iniziale non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            if (vm->frames[Findex].vars[Vindex]->T != TYPE_INT) perror("[VM] EXPEQ non su INT!\n");
+            int Vvalue = char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)
+                ? *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue)]->value)
+                : (int) strtoul(C_Vvalue, NULL, 10);
+            int base = *(vm->frames[Findex].vars[Vindex]->value), result = 1;
+            for (int i = 0; i < Vvalue; i++) result *= base;
+            *(vm->frames[Findex].vars[Vindex]->value) = result;
+
+        } else if (strcmp(firstWord, "SWAP") == 0) {
+            char* ID1 = strtok(NULL, " \t");
+            char* ID2 = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            uint V1index = char_id_map_get(&vm->frames[Findex].VarIndexer, ID1);
+            uint V2index = char_id_map_get(&vm->frames[Findex].VarIndexer, ID2);
+            int TMP = *(vm->frames[Findex].vars[V1index]->value);
+            *(vm->frames[Findex].vars[V1index]->value) = *(vm->frames[Findex].vars[V2index]->value);
+            *(vm->frames[Findex].vars[V2index]->value) = TMP;
+
+        } else if (strcmp(firstWord, "PUSH") == 0) {
+            char* C_Vvalue = strtok(NULL, " \t");
+            char* C_stack  = strtok(NULL, " \t");
+            if (strtok(NULL, " \t") != NULL) perror("[VM] troppi parametri per PUSH!\n");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            int value_to_push;
+            if (char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vvalue)) {
+                uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vvalue);
+                Var* src_var = vm->frames[Findex].vars[Vindex];
+                value_to_push = *(src_var->value);
+                *(src_var->value) = 0;
+            } else {
+                value_to_push = (int) strtoul(C_Vvalue, NULL, 10);
+            }
+            if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, C_stack))
+                perror("[VM] PUSH: stack destinazione non trovato!\n");
+            uint Sindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_stack);
+            Var* stack_var = vm->frames[Findex].vars[Sindex];
+            if (stack_var->T != TYPE_STACK) perror("[VM] PUSH: destinazione non e' stack!\n");
+            stack_var->value = realloc(stack_var->value, (stack_var->stack_len + 1) * sizeof(int));
+            if (!stack_var->value) perror("realloc failed");
+            stack_var->value[stack_var->stack_len++] = value_to_push;
+
+        } else if (strcmp(firstWord, "POP") == 0) {
+            char* C_Vdest = strtok(NULL, " \t");
+            char* C_stack = strtok(NULL, " \t");
+            if (strtok(NULL, " \t") != NULL) perror("[VM] troppi parametri per POP!\n");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, C_stack))
+                perror("[VM] POP: stack non trovato!\n");
+            uint Sindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_stack);
+            Var* stack_var = vm->frames[Findex].vars[Sindex];
+            if (stack_var->T != TYPE_STACK) perror("[VM] POP: sorgente non e' stack!\n");
+            if (stack_var->stack_len == 0) perror("[VM] POP: stack vuoto!\n");
+            int popped = stack_var->value[--stack_var->stack_len];
+            
+            // FIX: realloc(ptr, 0) == free() su Linux → heap corruption
+            // non ridurre sotto 1 elemento di spazio
+            if (stack_var->stack_len > 0)
+                stack_var->value = realloc(stack_var->value, stack_var->stack_len * sizeof(int));
+            // se stack_len == 0 lasciamo l'allocazione esistente intatta
+            
+            if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, C_Vdest))
+                perror("[VM] POP: destinazione non trovata!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, C_Vdest);
+            *(vm->frames[Findex].vars[Vindex]->value) += popped;
+        } else if (strcmp(firstWord, "EVAL") == 0) {
+            char* ID = strtok(NULL, " \t");
+            char* c_CValue = strtok(NULL, " \t");
+            int Vvalue;
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            //prima controllaiamo se c_CValue e' un ID o un numero
+            if(char_id_map_exists(&vm->frames[Findex].VarIndexer, c_CValue)){
+                //abbiamo un ID
+                uint c_CVindex = char_id_map_get(&vm->frames[Findex].VarIndexer, c_CValue);
+                Vvalue = *(vm->frames[Findex].vars[c_CVindex]->value);
+            }
+            else{
+                Vvalue = (int) strtoul(c_CValue, NULL, 10);
+            }
+            
+            if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID))
+                perror("[VM] EVAL di variabile non esistente!\n");
+            uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, ID);
+
+// AGGIUNGI QUESTO OVUNQUE
+if (vm->frames[Findex].vars[Vindex] == NULL) {
+    fprintf(stderr, "[VM] ERRORE: variabile '%s' e' NULL (gia' deallocata?)\n", ID);
+    exit(EXIT_FAILURE);
+}
+            vm->frames[Findex].val_IF = (*(vm->frames[Findex].vars[Vindex]->value) == Vvalue);
+
+        } else if (strcmp(firstWord, "JMPF") == 0) {
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            if (!vm->frames[Findex].val_IF) {
+                char* c_LABEL = strtok(NULL, " \t");
+                uint Lindex = char_id_map_get(&vm->frames[Findex].LabelIndexer, c_LABEL);
+                *newline = '\n';
+                ptr = go_to_line(original_buffer, vm->frames[Findex].label[Lindex] + 1);
+                continue;
+            }
+
+        } else if (strcmp(firstWord, "JMP") == 0) {
+            char* c_LABEL = strtok(NULL, " \t");
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            uint Lindex = char_id_map_get(&vm->frames[Findex].LabelIndexer, c_LABEL);
+            *newline = '\n';
+            ptr = go_to_line(original_buffer, vm->frames[Findex].label[Lindex] + 1);
+            if (!ptr) perror("[VM] JMP: label non trovata!\n");
+            continue;
+
+        } else if (strcmp(firstWord, "ASSERT") == 0) {
+            char *ID1 = strtok(NULL, " \t");
+            char *ID2 = strtok(NULL, " \t");
+            if (!ID1 || !ID2) { fprintf(stderr, "[VM] ASSERT: argomenti mancanti\n"); goto next_line; }
+            uint Findex = char_id_map_get(&FrameIndexer, frame_name);
+            char *ep1, *ep2;
+            unsigned long val1 = strtoul(ID1, &ep1, 10);
+            unsigned long val2 = strtoul(ID2, &ep2, 10);
+            if (*ep1 != '\0') {
+                if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID1))
+                    perror("[VM] ASSERT: prima variabile non trovata!\n");
+                val1 = *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, ID1)]->value);
+            }
+            if (*ep2 != '\0') {
+                if (!char_id_map_exists(&vm->frames[Findex].VarIndexer, ID2))
+                    perror("[VM] ASSERT: seconda variabile non trovata!\n");
+                val2 = *(vm->frames[Findex].vars[char_id_map_get(&vm->frames[Findex].VarIndexer, ID2)]->value);
+            }
+            if (val1 != val2) {
+                printf("[VM] ASSERT fallito! (v1=%ld, v2=%ld)\n", val1, val2);
+                exit(EXIT_FAILURE);
+            }
+        }
+        next_line:
+        *newline = '\n';
         ptr = newline + 1;
     }
+
+    free(original_buffer);
 }
+
 void vm_exec(VM *vm, char* buffer) {
     char* original_buffer = strdup(buffer); //vera copia non linkata con ptr e le sue modifiche
     char *ptr = buffer;
@@ -607,142 +668,11 @@ void vm_exec(VM *vm, char* buffer) {
                     //printf("DECL finito\n");
                     //printf("FINE STACK SIZE DECL: %d\n",stack_size(&vm->frames[Vindex].LocalVariables));
                 } else if (strcmp(firstWord, "LOCAL") == 0){
-                    //segniamo la crezione di una nuova variabile
-                    char* type = strtok(NULL, " \t");
-                    //printf("%s \n", type);
-                    char* Vname = strtok(NULL, " \t");
-                    //printf("%s\n", Vname);
-
-                    // prendiamo Vindex PRIMA di assegnare T, cosi' usiamo sempre l'indice stabile
-                    int Vindex = char_id_map_get(&vm->frames[vm->frame_top].VarIndexer, Vname); //int perche puo essere -1
-                    //controlliamo se era gia stato definita la variabile con DECL
-                    if (vm->frames[vm->frame_top].vars[Vindex] != NULL){
-                        //variabile gia definita con DECL
-                        perror("[VM] Varriabile local gia definita precedente!\n");
-                    }
-
-                    // allochiamo la struttura Var per questo slot
-                    vm->frames[vm->frame_top].vars[Vindex] = malloc(sizeof(Var));
-                    memset(vm->frames[vm->frame_top].vars[Vindex], 0, sizeof(Var));
-
-                    // assegniamo T direttamente su Vindex (non su var_count)
-                    if (strcmp(type, "int") == 0){
-                        vm->frames[vm->frame_top].vars[Vindex]->T = TYPE_INT;
-                    } else if (strcmp(type, "stack") == 0){
-                        vm->frames[vm->frame_top].vars[Vindex]->T = TYPE_STACK;
-                    } else perror("[VM] type variabile non esistente\n");
-
-                    // aggiorniamo var_count come high-water mark
-                    if (Vindex >= vm->frames[vm->frame_top].var_count)
-                        vm->frames[vm->frame_top].var_count = Vindex + 1;
-
-                    //printf("Frame %d, Var: %s, IndexFrame: %d\n", vm->frame_top, Vname, Vindex);
-                    //controllo se abbiamo gia definito la variabile
-                    //printf("%d <= %d\n",Vindex, stack_size(&vm->frames[vm->frame_top].LocalVariables));
-                    char * c_Vvalue = strtok(NULL, " \t");
-                    //controlliasmo se e' un ID o un valore
-                    if (char_id_map_exists(&vm->frames[vm->frame_top].VarIndexer, c_Vvalue)) {
-                        int C_Vindex = char_id_map_get(&vm->frames[vm->frame_top].VarIndexer, c_Vvalue);
-
-                        Var* dst = vm->frames[vm->frame_top].vars[Vindex];
-                        Var* src = vm->frames[vm->frame_top].vars[C_Vindex];
-
-                        // libera memoria vecchia
-                        if (dst->value != NULL) {
-                            free(dst->value);
-                        }
-
-                        if (src->T == TYPE_STACK) {
-                            if (dst->T == TYPE_STACK)
-                                dst->stack_len = src->stack_len;
-                            else 
-                                perror("[VM] Assegnazione valore fra tipo diversi!\n");
-                            dst->value = malloc(src->stack_len * sizeof(int));
-                            memcpy(dst->value, src->value, src->stack_len * sizeof(int));
-
-                        } else { // TYPE_INT
-                            if (!(dst->T == TYPE_INT))
-                                 perror("[VM] Assegnazione valore fra tipo diversi!\n");
-                            dst->value = malloc(sizeof(int));
-                            *(dst->value) = *(src->value);
-                        }
-                    }
-                    else{
-                        //printf("%s\n", c_Vvalue);
-                        //printf("%d\n", vm->frames[vm->frame_top].vars[Vindex]->T);
-                        if (vm->frames[vm->frame_top].vars[Vindex]->T == TYPE_STACK){
-                            if(strcmp(c_Vvalue, "nil") == 0){
-                                //array inizializzato correttamente a vuoto
-                                vm->frames[vm->frame_top].vars[Vindex]->stack_len = 0; //segniamo che e' uno stack mettendo 0 di lunghezza
-                                vm->frames[vm->frame_top].vars[Vindex]->value = malloc(VAR_STACK_MAX_SIZE * sizeof(int)); //dimensione dello stack
-                            } else perror("[VM] Valore stack per init non compatibile!\n");
-                            //printf("%s\n", c_Vvalue);
-                        } 
-                        else {
-                            //se e' INT
-                            vm->frames[vm->frame_top].vars[Vindex]->value = malloc(sizeof(int));
-                            int Vvalue = (int) strtoul(c_Vvalue, NULL, 10); 
-                            *(vm->frames[vm->frame_top].vars[Vindex]->value) = Vvalue; //la variabile LOCAL prende il valore passato dal utente
-                            //printf("%d\n",*(vm->frames[vm->frame_top].vars[Vindex]->value));
-                        }
-                    }
-                    strncpy(vm->frames[vm->frame_top].vars[Vindex]->name, Vname, VAR_NAME_LENGTH - 1); // memorizziamo il nome della variabile
-                    vm->frames[vm->frame_top].vars[Vindex]->name[VAR_NAME_LENGTH - 1] = '\0';
-                    vm->frames[vm->frame_top].vars[Vindex]->is_local = 1; //la variabile LOCAL e' locale
-                    //la variabile la pushamo nello stack locale quando stiamo eseguendo
-                    //Var* V = vm->frames[vm->frame_top].vars[Vindex];
-                    //printf("%d\n", *V->value);
-                    //stack_push(&vm->frames[vm->frame_top].LocalVariables, V); //mettiamo nello stack LIFO la variabile LOCAL in head
+                    // tutto a runtime
                 } else if (strcmp(firstWord, "DELOCAL") == 0){
                     //da controllare in esecuzione
                 } else if (strcmp(firstWord, "CALL") == 0) {
-                    char* proc_name = strtok(NULL, " \t");
-                    uint Pindex = char_id_map_get(&FrameIndexer, proc_name);
-
-                    // 1) Pre-raccogliamo tutti gli indici TYPE_PARAM PRIMA di modificare l'array
-                    int param_indices[64];
-                    int param_count = 0;
-                    for (int j = 0; j < vm->frames[Pindex].var_count; j++) {
-                        if (vm->frames[Pindex].vars[j]->T == TYPE_PARAM) {
-                            param_indices[param_count++] = j;
-                        }
-                    }
-
-                    // 2) Ora linchiamo in ordine
-                    char* param = NULL;
-                    int i = 0;
-                    while ((param = strtok(NULL, " \t")) != NULL) {
-                        if (i >= param_count) {
-                            fprintf(stderr, "ERROR: too many parameters for procedure frame[%d]\n", Pindex);
-                            exit(EXIT_FAILURE);
-                        }
-
-                        int j = param_indices[i];
-                        if (!char_id_map_exists(&vm->frames[vm->frame_top].VarIndexer, param)) {
-                            fprintf(stderr, "[VM] CALL: parametro '%s' non definito nel frame chiamante!\n", param);
-                            exit(EXIT_FAILURE);
-                        }
-
-                        int VtoLink_index = char_id_map_get(&vm->frames[vm->frame_top].VarIndexer, param);
-
-                        if (vm->frames[vm->frame_top].vars[VtoLink_index] == NULL) {
-                            fprintf(stderr, "[VM] CALL: variabile '%s' è NULL nel frame chiamante!\n", param);
-                            exit(EXIT_FAILURE);
-                        }
-
-                        Var* Vto_link = vm->frames[vm->frame_top].vars[VtoLink_index];
-
-                        //printf("LINKING param[%d] = %s -> linked with %s frame[%d]\n", i, param, Vto_link->name, vm->frame_top);
-
-                        vm->frames[Pindex].vars[j] = Vto_link; // scrittura sicura, indici già noti
-                        i++;
-                    }
-
-                    if (i != param_count) {
-                        fprintf(stderr, "ERROR: expected %d params, got %d for frame[%d]\n",
-                                param_count, i, Pindex);
-                        exit(EXIT_FAILURE);
-                    }
+                    //fatto a runtime
                 } else if (strcmp(firstWord, "UNCALL") == 0){
                     //implementato nel run
                 } else if (strcmp(firstWord, "PARAM") == 0){
@@ -783,7 +713,7 @@ void vm_exec(VM *vm, char* buffer) {
                     strncpy(vm->frames[vm->frame_top].vars[Vindex]->name, Vname, VAR_NAME_LENGTH - 1); // memorizziamo il nome della variabile
                     vm->frames[vm->frame_top].vars[Vindex]->name[VAR_NAME_LENGTH - 1] = '\0';
                     //printf("PARAM Frame %d, Var: %s, IndexFrame: %d\n", vm->frame_top, Vname, Vindex);
-
+                    vm->frames[vm->frame_top].param_indices[vm->frames[vm->frame_top].param_count++] = Vindex;
                 } else if (strcmp(firstWord, "SHOW") == 0){
                     //tempo di esecuzione
                 } else if (strcmp(firstWord, "PUSHEQ") == 0){
@@ -797,6 +727,8 @@ void vm_exec(VM *vm, char* buffer) {
                 } else if (strcmp(firstWord, "MODEQ") == 0){
                     //tempo di esecuzione
                 } else if (strcmp(firstWord, "EXPEQ") == 0){
+                    //tempo di esecuzione
+                } else if (strcmp(firstWord, "SWAP") == 0){
                     //tempo di esecuzione
                 } else if (strcmp(firstWord, "PUSH") == 0){
                     //tempo di esecuzione
@@ -818,8 +750,7 @@ void vm_exec(VM *vm, char* buffer) {
                     //printf("LABEL riga %d\n", vm->frames[vm->frame_top].label[Lindex]);
                 } else if (strcmp(firstWord, "ASSERT") == 0){
                     //tempo di esecuzione
-                }   
-                else {
+                } else {
                     printf("[VM] Istruzione sconosciuta: %s\n", firstWord);
                     exit(EXIT_FAILURE);
                 }
