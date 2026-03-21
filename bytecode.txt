@@ -1,55 +1,24 @@
 0000  START
-0001  PROC fib_iter
-0002  PARAM int x1
-0003  PARAM int x2
-0004  PARAM int n
-0005  LOCAL int i 0
-0006  LOCAL int tmp 0
-0007  PUSHEQ x1 1
-0008  PUSHEQ x2 1
-0009  PUSHEQ i n
-0010  EVAL i n
-0011  JMPF FROM_ERR_10
-0012  LABEL FROM_START_10
-0013  PUSHEQ x1 x2
-0014  SWAP x1 x2
-0015  MINEQ i 1
-0016  EVAL i 0
-0017  JMPF FROM_START_10
-0018  LABEL FROM_END_10
-0019  LABEL FROM_ERR_10
-0020  HALT
-0021  DELOCAL int tmp 0
-0022  DELOCAL int i 0
-0023  END_PROC fib_iter
-0024  PROC fib_ricorsivo
-0025  PARAM int x1
-0026  PARAM int x2
-0027  PARAM int n
-0028  EVAL n 0
-0029  JMPF ELSE_28
-0030  PUSHEQ x1 1
-0031  PUSHEQ x2 1
-0032  JMP FI_28
-0033  LABEL ELSE_28
-0034  MINEQ n 1
-0035  CALL fib_ricorsivo x1 x2 n
-0036  PUSHEQ x1 x2
-0037  SWAP x1 x2
-0038  LABEL FI_28
-0039  EVAL n 0
-0040  ASSERT n 0
-0041  END_PROC fib_ricorsivo
-0042  PROC main
-0043  DECL int Fib_of_n
-0044  DECL int Fib_of_n_minus_1
-0045  DECL int n
-0046  PUSHEQ n 4
-0047  CALL fib_iter Fib_of_n_minus_1 Fib_of_n n
-0048  SHOW Fib_of_n
-0049  MINEQ Fib_of_n Fib_of_n
-0050  MINEQ Fib_of_n_minus_1 Fib_of_n_minus_1
-0051  CALL fib_ricorsivo Fib_of_n_minus_1 Fib_of_n n
-0052  SHOW Fib_of_n
-0053  END_PROC main
-0054  HALT
+0001  PROC check_boolean
+0002  PARAM int flag
+0003  MINEQ flag flag
+0004  PUSHEQ flag 1
+0005  EVAL flag 1
+0006  JMPF ELSE_5
+0007  SHOW flag
+0008  JMP FI_5
+0009  LABEL ELSE_5
+0010  LOCAL int x 5
+0011  SHOW x
+0012  DELOCAL int x 5
+0013  LABEL FI_5
+0014  EVAL flag 1
+0015  ASSERT flag 1
+0016  END_PROC check_boolean
+0017  PROC main
+0018  LOCAL int flag 0
+0019  CALL check_boolean flag
+0020  UNCALL check_boolean flag
+0021  DELOCAL int flag 0
+0022  END_PROC main
+0023  HALT

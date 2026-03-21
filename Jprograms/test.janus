@@ -1,41 +1,19 @@
-procedure fib_iter(int x1, int x2, int n)
-    local int i = 0
-    local int tmp = 0
-
-    x1 += 1
-    x2 += 1
-
-    i += n
-
-    from i = n loop
-        x1 += x2
-        x1 <=> x2
-        i -= 1
-    until i = 0
-
-    delocal int tmp = 0
-    delocal int i = 0
-
-
-procedure fib_ricorsivo(int x1, int x2, int n)
-    if n = 0 then
-        x1 += 1
-        x2 += 1
+procedure check_boolean(int flag)
+    flag-=flag
+    flag+=1
+    if flag = 1 then
+        //do something
+        show(flag)
     else
-        n -= 1
-        call fib_ricorsivo(x1, x2, n)
-        x1 += x2
-        x1 <=> x2
-    fi n = 0        
+        //do something
+        local int x = 5
+        show(x)
+        delocal int x = 5
+    fi flag = 1
 
 procedure main()
-    int Fib_of_n
-    int Fib_of_n_minus_1
-    int n
-    n+=4
-    call fib_iter(Fib_of_n_minus_1, Fib_of_n, n)
-    show(Fib_of_n)
-    Fib_of_n-=Fib_of_n
-    Fib_of_n_minus_1-=Fib_of_n_minus_1
-    call fib_ricorsivo(Fib_of_n_minus_1, Fib_of_n, n)
-    show(Fib_of_n)
+    local int flag = 0
+    call check_boolean(flag)
+    uncall check_boolean(flag)
+    delocal int flag = 0
+    
