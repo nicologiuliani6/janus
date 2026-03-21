@@ -115,37 +115,41 @@ class ByteCode_Compiler:
                 self.emit(f"{proc_name.upper()} {args_str}")
             case 'if':
                 # AST: ('if', entry_cond, then_body, else_body, fi_cond)
-                entry_cond = ast[1]   # ('cond', lhs, rhs)  oppure ('cond', var, val)
+                entry_cond = ast[1]
                 then_body  = ast[2]
                 else_body  = ast[3]
                 fi_cond    = ast[4]
 
-                # ── etichette univoche (usiamo l'indirizzo corrente per evitare collisioni)
                 uid        = self.addr
                 else_label = f"ELSE_{uid}"
                 fi_label   = f"FI_{uid}"
 
-                # 1) valuta entry condition ed emetti salto condizionale
                 lhs, rhs = entry_cond[1], entry_cond[2]
-                self.emit(f"EVAL {lhs} {rhs}")          # valuta e lascia bool sullo stack
-                self.emit(f"JMPF {else_label}")            # se falso → else
 
-                # 2) then body
+                # ── 1) ENTRY CONDITION
+                self.emit(f"EVAL {lhs} {rhs}")
+                self.emit(f"JMPF {else_label}")
+
+                # ── 2) THEN
                 for stmt in then_body:
                     self.process(stmt)
-                self.emit(f"JMP {fi_label}")               # salta oltre else
+                self.emit(f"JMP {fi_label}")
 
-                # 3) else label + else body
+                # ── 3) ELSE
                 self.labels[else_label] = self.addr
                 self.emit(f"LABEL {else_label}")
                 for stmt in else_body:
                     self.process(stmt)
 
-                # 4) fi label + assert exit condition
+                # ── 4) FI (REVERSIBILITY CHECK)
                 self.labels[fi_label] = self.addr
                 self.emit(f"LABEL {fi_label}")
+
                 lhs_fi, rhs_fi = fi_cond[1], fi_cond[2]
-                self.emit(f"ASSERT {lhs_fi} {rhs_fi}")  # obbligatorio in Janus
+
+                # 🔥 QUESTA È LA PARTE IMPORTANTE
+                self.emit(f"EVAL {lhs_fi} {rhs_fi}")
+                self.emit(f"ASSERT {lhs} {rhs}")   # deve matchare la entry condition 
             case 'from':
                 entry_cond = ast[1]
                 body       = ast[2]

@@ -32,10 +32,10 @@ procedure main()
     int Fib_of_n
     int Fib_of_n_minus_1
     int n
-    n+=40
+    n+=4
     call fib_iter(Fib_of_n_minus_1, Fib_of_n, n)
     show(Fib_of_n)
     Fib_of_n-=Fib_of_n
     Fib_of_n_minus_1-=Fib_of_n_minus_1
-    call fib_iter(Fib_of_n_minus_1, Fib_of_n, n)
+    call fib_ricorsivo(Fib_of_n_minus_1, Fib_of_n, n)
     show(Fib_of_n)

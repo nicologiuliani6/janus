@@ -27,6 +27,7 @@ typedef struct Var {
 
 #define MAX_VARS  100
 #define MAX_LABEL 100
+#define MAX_NESTED 100
 
 typedef struct {
     CharIdMap VarIndexer;
@@ -41,6 +42,9 @@ typedef struct {
     uint      val_IF;
     int       param_indices[64];
     int       param_count;
+    int loop_restart_i[MAX_NESTED]; /* indice prima istr. del corpo in ordine inverso */
+    int loop_bottom_i[MAX_NESTED]; /* indice del JMPF backward che segna il fondo */
+    int loop_counter;
 } Frame;
 
 #define MAX_FRAMES 100
@@ -233,7 +237,7 @@ void op_eval(VM *vm, const char *frame_name)
 
 /* JMP incondizionato: ritorna sempre il nuovo ptr. */
 char *op_jmp(VM *vm, const char *frame_name, char *original_buffer)
-{
+{   
     char *c_label = strtok(NULL, " \t");
     uint  Findex  = get_findex(frame_name);
     uint  Lindex  = char_id_map_get(&vm->frames[Findex].LabelIndexer, c_label);
@@ -388,7 +392,6 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer, uint start,
     char *original_buffer = strdup(buffer);
     if (!original_buffer) perror("[UNCALL] strdup fallita\n");
 
-    /* --- raccoglie puntatori a tutte le righe nell'intervallo [stop, start] --- */
     #define MAX_INVERT_LINES 1024
     char *lines[MAX_INVERT_LINES];
     int   line_count = 0;
@@ -411,17 +414,31 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer, uint start,
         }
 
         lines[line_count++] = ptr;
-
-        /* calcoliamo la riga corrente contando le \n dall'inizio */
         uint cur_line = stop + line_count - 1;
-        if (cur_line >= start) break;   /* incluso start, poi ci fermiamo */
+        if (cur_line >= start) break;
 
-        *newline = '\0';                /* termina temporaneamente per sicurezza */
-        *newline = '\n';                /* ripristina subito */
-        ptr = newline + 1;
+        ptr = strchr(ptr, '\n') + 1;
     }
 
-    /* --- itera in ordine inverso ed esegue l'op inversa --- */
+    /* ------------------------------------------------------------------ *
+     * Stack di stati per loop annidati.                                   *
+     * Ogni livello tiene traccia di:                                      *
+     *   bottom_i   = indice (in lines[]) del JMPF backward (fondo loop)  *
+     *   restart_i  = indice della prima istr. del corpo in ordine inv.    *
+     *                -1 finché non è stato fissato dal primo EVAL         *
+     *   from_seen  = 0: stiamo aspettando il primo EVAL (UNTIL fwd)       *
+     *                1: il primo EVAL è stato visto, aspettiamo il FROM   *
+     * ------------------------------------------------------------------ */
+    typedef struct {
+        int bottom_i;
+        int restart_i;
+        int from_seen;  /* 0 = aspetta UNTIL-fwd, 1 = aspetta FROM-fwd */
+    } LoopState;
+
+    #define MAX_LOOP_DEPTH 32
+    LoopState loop_stack[MAX_LOOP_DEPTH];
+    int loop_top = -1;   /* -1 = nessun loop attivo */
+
     for (int i = line_count - 1; i >= 0; i--) {
         char *newline = strchr(lines[i], '\n');
         if (!newline) continue;
@@ -432,8 +449,9 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer, uint start,
         line_buf[sizeof(line_buf) - 1] = '\0';
 
         char *firstWord = strtok(line_buf, " \t");
-        if (!firstWord || strcmp(firstWord, "") == 0) {
-            /* riga vuota, salta */
+        if (!firstWord || firstWord[0] == '\0') {
+            /* riga vuota */
+
         } else if (strcmp(firstWord, "PUSHEQ")  == 0) { op_pusheq_inv(vm, frame_name);
         } else if (strcmp(firstWord, "MINEQ")   == 0) { op_mineq_inv (vm, frame_name);
         } else if (strcmp(firstWord, "PRODEQ")  == 0) { op_prodeq_inv(vm, frame_name);
@@ -446,16 +464,72 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer, uint start,
         } else if (strcmp(firstWord, "LOCAL")   == 0) { op_delocal   (vm, frame_name);
         } else if (strcmp(firstWord, "DELOCAL") == 0) { op_local     (vm, frame_name);
         } else if (strcmp(firstWord, "SHOW")    == 0) { op_show      (vm, frame_name);
-        } else if (strcmp(firstWord, "EVAL")    == 0) { op_eval      (vm, frame_name);
-        } else if (strcmp(firstWord, "ASSERT")  == 0) { op_assert    (vm, frame_name);
-        } else if (strcmp(firstWord, "JMP")     == 0 ||
-                   strcmp(firstWord, "JMPF")    == 0 ||
-                   strcmp(firstWord, "LABEL")   == 0 ||
+        } else if (strcmp(firstWord, "JMPF") == 0) {
+            char *label    = strtok(NULL, " \t");
+            uint  Findex   = get_findex(frame_name);
+            uint  Lindex   = char_id_map_get(&vm->frames[Findex].LabelIndexer, label);
+            uint  target_line = vm->frames[Findex].label[Lindex];
+            uint  cur_line    = stop + i;
+
+            if (target_line < cur_line) {
+                /* JMPF backward → fondo di un loop forward → nuovo livello */
+                if (loop_top + 1 >= MAX_LOOP_DEPTH) {
+                    fprintf(stderr, "[UNCALL] loop annidati troppo profondi (max %d)\n", MAX_LOOP_DEPTH);
+                    exit(EXIT_FAILURE);
+                }
+                loop_top++;
+                loop_stack[loop_top].bottom_i  = i;
+                loop_stack[loop_top].restart_i = -1;
+                loop_stack[loop_top].from_seen  = 0;
+            }
+            /* JMPF forward (guardia FROM): ignorato in inversione */
+
+        } else if (strcmp(firstWord, "JMP") == 0) {
+            /* JMP incondizionato: no-op in inversione */
+
+        } else if (strcmp(firstWord, "EVAL") == 0) {
+            op_eval(vm, frame_name);
+            uint Findex = get_findex(frame_name);
+
+            if (loop_top < 0) {
+                /* EVAL standalone fuori da qualunque loop: nessuna azione */
+
+            } else if (loop_stack[loop_top].from_seen == 0) {
+                /*
+                 * Primo EVAL dopo il JMPF backward del livello corrente.
+                 * È la condizione UNTIL del forward → FROM check dell'inverso.
+                 * Deve essere vera all'ingresso del loop inverso.
+                 */
+                if (!vm->frames[Findex].val_IF) {
+                    fprintf(stderr, "[UNCALL] FROM inversa non soddisfatta (livello %d)!\n", loop_top);
+                    exit(EXIT_FAILURE);
+                }
+                loop_stack[loop_top].restart_i = i - 1;
+                loop_stack[loop_top].from_seen  = 1;
+
+            } else {
+                /*
+                 * Secondo EVAL del livello corrente.
+                 * È la condizione FROM del forward → UNTIL check dell'inverso.
+                 */
+                if (!vm->frames[Findex].val_IF) {
+                    /* UNTIL non raggiunto: ripeti il corpo inverso */
+                    i = loop_stack[loop_top].restart_i + 1;
+                } else {
+                    /* UNTIL raggiunto: chiudi questo livello di loop */
+                    loop_top--;
+                }
+            }
+
+        } else if (strcmp(firstWord, "ASSERT") == 0) { op_assert          (vm, frame_name);
+        } else if (strcmp(firstWord, "LABEL")   == 0 ||
                    strcmp(firstWord, "PROC")    == 0 ||
+                   strcmp(firstWord, "PARAM")   == 0 ||
                    strcmp(firstWord, "END_PROC")== 0 ||
                    strcmp(firstWord, "CALL")    == 0 ||
-                   strcmp(firstWord, "UNCALL")  == 0) {
-            /* salti e struttura: gestione futura, per ora ignorati */
+                   strcmp(firstWord, "UNCALL")  == 0 ||
+                   strcmp(firstWord, "HALT")    == 0) {
+            /* struttura: ignorati */
         } else {
             fprintf(stderr, "[UNCALL] istruzione sconosciuta in inversione: %s\n", firstWord);
         }
@@ -465,8 +539,8 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer, uint start,
 
     free(original_buffer);
     #undef MAX_INVERT_LINES
+    #undef MAX_LOOP_DEPTH
 }
-
 
 /* ======================================================================
  *  VM RUN  (dispatch loop snello)
@@ -625,15 +699,17 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
         } else if (strcmp(firstWord, "POP")     == 0) { op_pop    (vm, frame_name);
         } else if (strcmp(firstWord, "EVAL")    == 0) { op_eval   (vm, frame_name);
         } else if (strcmp(firstWord, "ASSERT")  == 0) { op_assert (vm, frame_name);
-
         } else if (strcmp(firstWord, "JMPF") == 0) {
-            char *new_ptr = op_jmpf(vm, frame_name, original_buffer);
-            if (new_ptr) { *newline = '\n'; ptr = new_ptr; continue; }
+        *newline = '\n';                                          // <-- ripristina prima
+        char *new_ptr = op_jmpf(vm, frame_name, original_buffer);
+        if (new_ptr) { ptr = new_ptr; continue; }
 
-        } else if (strcmp(firstWord, "JMP") == 0) {
-            char *new_ptr = op_jmp(vm, frame_name, original_buffer);
-            *newline = '\n'; ptr = new_ptr; continue;
-        }
+    } else if (strcmp(firstWord, "JMP") == 0) {
+        *newline = '\n';                                          // <-- ripristina prima
+        char *new_ptr = op_jmp(vm, frame_name, original_buffer);
+        ptr = new_ptr;
+        continue;
+    }
 
         *newline = '\n';
         ptr = newline + 1;
@@ -830,6 +906,8 @@ void vm_dump(VM *vm)
 #define START_BUFFER 256
 #define AST_BUFFER  (1024 * 10)
 
+
+#include "check_if_reversibility.h"
 int main(void)
 {
     char buffer[START_BUFFER];
@@ -842,7 +920,8 @@ int main(void)
     while (fgets(buffer, sizeof(buffer), fp))
         strncat(ast, buffer, sizeof(ast) - strlen(ast) - 1);
     fclose(fp);
-
+    vm_check_if_reversibility(ast);
+        
     VM vm;
     memset(&vm, 0, sizeof(VM));
     vm_exec(&vm, ast);
