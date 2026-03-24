@@ -1,19 +1,22 @@
-procedure check_boolean(int flag)
-    flag-=flag
-    flag+=1
-    if flag = 1 then
-        //do something
-        show(flag)
+procedure add(int x, int n)
+    show(x)
+    show(n)
+    if n = 0 then   
+        //skip
     else
-        //do something
-        local int x = 5
-        show(x)
-        delocal int x = 5
-    fi flag = 1
+        n-=1
+        x+=1
+        call add(x, n)
+    fi n = 0
+    show(x)
+    show(n)
 
 procedure main()
-    local int flag = 0
-    call check_boolean(flag)
-    uncall check_boolean(flag)
-    delocal int flag = 0
-    
+    local stack s = nil
+    local int n = 1
+    int x
+    call add(x, n)
+    show(s)
+    uncall add(x, n)
+    delocal int n = 1
+    delocal stack s = nil

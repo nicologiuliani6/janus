@@ -212,7 +212,7 @@ class ByteCode_Compiler:
 # ───────────────────────────────────────────
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Uso: python Janus.py <file>")
+        print("Uso: python JBytecode.py <file>")
         sys.exit(1)
 
     with open(sys.argv[1], 'r') as f:

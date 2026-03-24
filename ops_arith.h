@@ -29,6 +29,10 @@ void op_mineq(VM *vm, const char *frame_name)
     uint  Findex  = get_findex(frame_name);
     Var  *v       = get_var(vm, Findex, ID, "MINEQ");
     if (v->T != TYPE_INT) perror("[VM] MINEQ non su INT!\n");
+    if(resolve_value(vm, Findex, C_value) == 0) {
+        //printf("[WARING] Prodotto per 0!\n");
+        //exit(EXIT_FAILURE);
+    }
     *(v->value) -= resolve_value(vm, Findex, C_value);
 }
 
