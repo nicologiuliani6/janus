@@ -32,10 +32,9 @@ procedure fib_ricorsivo(int x1, int x2, int n)
     fi zero = 1
 
 procedure main()
-    int Fib_of_n
-    int Fib_of_n_minus_1
-    int n
-    n+=4
+    local int Fib_of_n = 0
+    local int Fib_of_n_minus_1 = 0
+    local int n = 4
     call fib_iter(Fib_of_n_minus_1, Fib_of_n, n)
     show(Fib_of_n)
     uncall fib_iter(Fib_of_n_minus_1, Fib_of_n, n)
@@ -44,3 +43,6 @@ procedure main()
     show(Fib_of_n)
     uncall fib_ricorsivo(Fib_of_n_minus_1, Fib_of_n, n)
     show(Fib_of_n)
+    delocal int n = 4
+    delocal int Fib_of_n_minus_1 = 0
+    delocal int Fib_of_n = 0

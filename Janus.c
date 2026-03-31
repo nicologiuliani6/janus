@@ -715,26 +715,25 @@ static void exec_branch_inverse(VM *vm, char *original_buffer,
         ptr = newline + 1;
     }
 
-    //fprintf(stderr, "[DBG exec_branch_inverse] frame=%s from=%u to=%u count=%d\n", frame_name, from_line, to_line, count);
-
     uint callee_findex = char_id_map_get(&FrameIndexer, frame_name);
 
-    /* Salva le vars del callee */
+    /* Save the callee's vars and LocalVariables */
     Var *saved_vars[MAX_VARS];
-    memcpy(saved_vars, vm->frames[callee_findex].vars,
-           sizeof(Var*) * MAX_VARS);
+    memcpy(saved_vars, vm->frames[callee_findex].vars, sizeof(Var*) * MAX_VARS);
+    Stack saved_lv = vm->frames[callee_findex].LocalVariables;
+    stack_init(&vm->frames[callee_findex].LocalVariables);
 
-    /* Linka i PARAM del callee alle var del caller per nome */
+    /* Link PARAMs of callee to caller's vars by name */
     for (int p = 0; p < vm->frames[callee_findex].param_count; p++) {
         int   pidx  = vm->frames[callee_findex].param_indices[p];
-        char *pname = vm->frames[callee_findex].vars[pidx]->name;
+        char *pname = saved_vars[pidx]->name;   /* use saved to get name safely */
         if (char_id_map_exists(&vm->frames[caller_findex].VarIndexer, pname)) {
             int src = char_id_map_get(&vm->frames[caller_findex].VarIndexer, pname);
             vm->frames[callee_findex].vars[pidx] = vm->frames[caller_findex].vars[src];
         }
     }
 
-    /* DECL vars (es. 'zero') che sono NULL: alloca temporaneamente */
+    /* Allocate temp Var for every slot that is currently NULL (LOCAL vars) */
     Var *temp_alloc[MAX_VARS];
     memset(temp_alloc, 0, sizeof(temp_alloc));
     for (int v = 0; v < vm->frames[callee_findex].var_count; v++) {
@@ -742,10 +741,15 @@ static void exec_branch_inverse(VM *vm, char *original_buffer,
             vm->frames[callee_findex].vars[v] = calloc(1, sizeof(Var));
             vm->frames[callee_findex].vars[v]->T     = TYPE_INT;
             vm->frames[callee_findex].vars[v]->value = calloc(1, sizeof(int));
+            /* copy the name from the saved slot so LOCAL/DELOCAL name checks work */
+            if (saved_vars[v])
+                strncpy(vm->frames[callee_findex].vars[v]->name,
+                        saved_vars[v]->name, VAR_NAME_LENGTH - 1);
             temp_alloc[v] = vm->frames[callee_findex].vars[v];
         }
     }
 
+    /* Execute instructions in reverse */
     for (int i = count - 1; i >= 0; i--) {
         char op_buf[512];
         strncpy(op_buf, lines[i], sizeof(op_buf) - 1);
@@ -756,8 +760,6 @@ static void exec_branch_inverse(VM *vm, char *original_buffer,
         if (!fw) continue;
 
         if (strcmp(fw, "CALL") == 0 || strcmp(fw, "UNCALL") == 0) continue;
-
-        //fprintf(stderr, "[DBG exec_branch] i=%d fw=%s\n", i, fw);
 
         if      (strcmp(fw, "PUSHEQ") == 0) op_pusheq_inv(vm, frame_name);
         else if (strcmp(fw, "MINEQ")  == 0) op_mineq_inv (vm, frame_name);
@@ -774,22 +776,23 @@ static void exec_branch_inverse(VM *vm, char *original_buffer,
         /* LABEL, EVAL, ASSERT, JMP, JMPF → skip */
     }
 
-    /* Libera le DECL temporanee */
+    /* Free temp allocations that were NOT consumed by LOCAL/DELOCAL ops.
+       If op_delocal ran on a temp var it already called delete_var (free+NULL),
+       so check before freeing. */
     for (int v = 0; v < vm->frames[callee_findex].var_count; v++) {
-        if (temp_alloc[v]) {
+        if (temp_alloc[v] && vm->frames[callee_findex].vars[v] == temp_alloc[v]) {
             free(temp_alloc[v]->value);
             free(temp_alloc[v]);
             vm->frames[callee_findex].vars[v] = NULL;
         }
     }
 
-    /* Ripristina le vars del callee */
-    memcpy(vm->frames[callee_findex].vars, saved_vars,
-           sizeof(Var*) * MAX_VARS);
+    /* Restore callee's vars and LocalVariables */
+    memcpy(vm->frames[callee_findex].vars, saved_vars, sizeof(Var*) * MAX_VARS);
+    vm->frames[callee_findex].LocalVariables = saved_lv;
 
     for (int i = 0; i < count; i++) free(lines[i]);
 }
-
 
 /* ======================================================================
  *  invert_op_to_line — versione finale con if/fi + loop + call/uncall
@@ -935,35 +938,43 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer,
         }
 
         if (izone == IF_ZONE_JMPF_ELSE) {
-            int depth = vm->frames[findex].recursion_depth;
-            //fprintf(stderr, "[DBG IF_JMPF_ELSE] depth=%d k_start=%d\n",
-            //        depth,
-            //        *(vm->frames[findex].vars[
-            //            char_id_map_get(&vm->frames[findex].VarIndexer,
-            //                            ifs[if_idx].eval_entry_id)
-            //        ]->value));
+    int depth = vm->frames[findex].recursion_depth;
 
-            /* Disfa il ramo else depth volte (una per ogni chiamata ricorsiva) */
-            for (int d = 0; d < depth; d++) {
-                exec_branch_inverse(vm, original_buffer, cur_frame,
-                                    ifs[if_idx].else_label_line + 1,
-                                    ifs[if_idx].fi_label_line,
-                                    findex);
-            }
+    /* For each recursive call depth: undo the else branch */
+    for (int d = 0; d < depth; d++) {
+        /* Save LocalVariables state before exec_branch_inverse */
+        Stack saved_lv = vm->frames[findex].LocalVariables;
+        stack_init(&vm->frames[findex].LocalVariables);
 
-            /* Disfa il ramo then una volta sola (il caso base) */
-            exec_branch_inverse(vm, original_buffer, cur_frame,
-                                ifs[if_idx].jmpf_else_line + 1,
-                                ifs[if_idx].jmp_fi_line,
-                                findex);
+        exec_branch_inverse(vm, original_buffer, cur_frame,
+                            ifs[if_idx].else_label_line + 1,
+                            ifs[if_idx].fi_label_line,
+                            findex);
 
-            int target = -1;
-            for (int j = i - 1; j >= 0; j--) {
-                if (line_nos[j] == ifs[if_idx].eval_entry_line) { target = j; break; }
-            }
-            i = (target >= 0) ? target - 1 : i - 1;
-            continue;
-        }
+        /* Restore LocalVariables state */
+        vm->frames[findex].LocalVariables = saved_lv;
+    }
+
+    /* Undo the base case: the then branch */
+    {
+        Stack saved_lv = vm->frames[findex].LocalVariables;
+        stack_init(&vm->frames[findex].LocalVariables);
+
+        exec_branch_inverse(vm, original_buffer, cur_frame,
+                            ifs[if_idx].jmpf_else_line + 1,
+                            ifs[if_idx].jmp_fi_line,
+                            findex);
+
+        vm->frames[findex].LocalVariables = saved_lv;
+    }
+
+    int target = -1;
+    for (int j = i - 1; j >= 0; j--) {
+        if (line_nos[j] == ifs[if_idx].eval_entry_line) { target = j; break; }
+    }
+    i = (target >= 0) ? target - 1 : i - 1;
+    continue;
+}
 
         if (line_is_inside_if(cur_line, ifs, nifs)) {
             i--; continue;
@@ -1080,6 +1091,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
         Var  *saved_params[64];
         int   saved_param_count;
         int   callee_findex;
+        Stack saved_local_vars;   /* ← AGGIUNTO */
     } CallRecord;
 
     CallRecord call_stack[MAX_FRAMES];
@@ -1125,12 +1137,13 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
     if (call_top >= 0) {
         int cfi = call_stack[call_top].callee_findex;
 
-        // ← RIMUOVI il decremento recursion_depth qui
-
         for (int k = 0; k < call_stack[call_top].saved_param_count; k++)
             vm->frames[cfi].vars[
                 vm->frames[cfi].param_indices[k]
             ] = call_stack[call_top].saved_params[k];
+
+        // ← RESTORE the callee's LocalVariables stack
+        vm->frames[cfi].LocalVariables = call_stack[call_top].saved_local_vars;
 
         ptr = call_stack[call_top].return_ptr;
         strncpy(frame_name, call_stack[call_top].caller_frame,
@@ -1140,7 +1153,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
     } else {
         break;
     }
-} else if (strcmp(firstWord, "CALL") == 0) {
+        } else if (strcmp(firstWord, "CALL") == 0) {
             char *proc_name  = strtok(NULL, " \t");
             uint  Findex     = char_id_map_get(&FrameIndexer, proc_name);
             uint  cur_Findex = get_findex(frame_name);
@@ -1160,7 +1173,9 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
 
             call_stack[call_top].callee_findex     = Findex;
             call_stack[call_top].saved_param_count = param_count;
-
+            // Save callee's LocalVariables stack before recursive call
+            call_stack[call_top].saved_local_vars = vm->frames[Findex].LocalVariables;
+            stack_init(&vm->frames[Findex].LocalVariables);
             for (int k = 0; k < param_count; k++) {
                 call_stack[call_top].saved_params[k] =
                     vm->frames[Findex].vars[param_indices[k]];
