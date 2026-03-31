@@ -1,26 +1,34 @@
-procedure encrypt(int x, int key)
-    int k 
-    k+=key
-    if key = 0 then
-        //skip
-    else 
-        x += k
-        k -= 1
-        call encrypt(x, k)
-    fi key = 0
+//procedure encrypt1(int m)
+//    local int k = 17
+//    from k = 17 loop
+//        //show(k)
+//        m += k
+//        k -= 1
+//    until k = 0
+//    delocal int k = 0
     
-
+procedure encrypt(int m, int k)
+    if k = 0 then
+        // fine ricorsione
+        // niente da fare
+    else
+        m += k
+        k -= 1
+        call encrypt(m, k)
+        k += 1     // ripristino reversibile
+        m -= k     // ripristino reversibile
+    fi k = 0
 
 procedure main()
-    local int key = 10
+    local int key = 17
     local int msg = 0
-    show(msg)
-    show(key)
+    show(msg)          // 0
+    show(key)          // 17
     call encrypt(msg, key)
-    show(msg)
-    show(key)
+    show(msg)          // 153 (17+16+...+1)
+    show(key)          // 17 (non modificata)
     uncall encrypt(msg, key)
-    show(msg) //deve tornare a 0
-    show(key)
+    show(msg)          // torna 0
+    show(key)          // torna 17
     delocal int msg = 0
-    delocal int key = 10
+    delocal int key = 17

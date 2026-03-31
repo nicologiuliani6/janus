@@ -201,7 +201,7 @@ class ByteCode_Compiler:
                 # ─────────────────────────────
                 self.labels[err_label] = self.addr
                 self.emit(f"LABEL {err_label}")
-                self.emit("HALT")
+                #self.emit("HALT")
             case _:
                 print(f"[BYTECODE] nodo AST non gestito: {head}  →  {ast}")
                 exit(1)

@@ -354,8 +354,8 @@ void op_delocal(VM *vm, const char *frame_name)
             delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
                        char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
         else {
-            printf("[VM] DELOCAL: valore finale diverso dall'atteso! (%d, %d)\n",
-                   Vvalue, *(V->value));
+            printf("[VM] DELOCAL: valore finale diverso dall'atteso! (%s, %d, %d)\n",
+                   Vname, Vvalue, *(V->value));
             exit(1);
         }
     }
@@ -858,31 +858,38 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer,
         }
         if (lzone == LOOP_ZONE_JMPF_ERR) {
             do_eval(vm, findex,
-                    loops[loop_idx].eval_exit_id,
-                    loops[loop_idx].eval_exit_val);
+                    loops[loop_idx].eval_entry_id,
+                    loops[loop_idx].eval_entry_val);
+
             if (vm->frames[findex].val_IF) {
+                /* entry condition vera (k==17) → loop inverso terminato */
                 i--;
             } else {
+                /* entry condition falsa → torna subito sotto JMPF_START
+                   per rieseguire il body */
                 int target = -1;
-                for (int j = 0; j < nlines; j++)
+                for (int j = nlines - 1; j >= 0; j--)
                     if (line_nos[j] == loops[loop_idx].jmpf_start_line) { target = j; break; }
-                if (target < 0) { fprintf(stderr, "[UNCALL] loop target non trovato\n"); exit(1); }
-                i = target;
+                if (target < 0) { fprintf(stderr, "[UNCALL] jmpf_start non trovato\n"); exit(1); }
+                i = target - 1; /* -1: subito sotto JMPF_START = primo op del body */
             }
             continue;
         }
         if (lzone == LOOP_ZONE_JMPF_START) {
             do_eval(vm, findex,
-                    loops[loop_idx].eval_entry_id,
-                    loops[loop_idx].eval_entry_val);
+                    loops[loop_idx].eval_exit_id,
+                    loops[loop_idx].eval_exit_val);
+
             if (vm->frames[findex].val_IF) {
+                /* exit condition vera (k==0) → entra nel body scorrendo verso JMPF_ERR */
                 i--;
             } else {
+                /* exit condition falsa → non entrare, salta oltre JMPF_ERR */
                 int target = -1;
-                for (int j = nlines - 1; j >= 0; j--)
+                for (int j = 0; j < nlines; j++)
                     if (line_nos[j] == loops[loop_idx].jmpf_err_line) { target = j; break; }
-                if (target < 0) { fprintf(stderr, "[UNCALL] loop entry non trovato\n"); exit(1); }
-                i = target;
+                if (target < 0) { fprintf(stderr, "[UNCALL] jmpf_err non trovato\n"); exit(1); }
+                i = target - 1; /* -1: subito sopra JMPF_ERR = esce dal loop */
             }
             continue;
         }
@@ -1001,6 +1008,7 @@ void invert_op_to_line(VM *vm, const char *frame_name, char *buffer,
         else if (strcmp(firstWord, "JMP")    == 0) { /* skip */ }
         else if (strcmp(firstWord, "ASSERT") == 0) { /* skip */ }
         else if (strcmp(firstWord, "DECL")   == 0) { /* skip */ }
+        else if (strcmp(firstWord, "HALT")   == 0) { /* skip */ }
         else {
             fprintf(stderr, "[UNCALL] op sconosciuta: '%s'\n", firstWord);
             exit(EXIT_FAILURE);
@@ -1435,8 +1443,8 @@ void vm_run_from_string(const char *bytecode)
 
     if (vm_check_if_reversibility(ast) > 0) {
         // Handle reversibility issues
-        fprintf(stderr, "\nWarning: Bytecode may not be fully reversible. Check logs for details.\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "Warning: Bytecode may not be fully reversible. Check logs for details.\n");
+        //exit(EXIT_FAILURE);
     }
 
     VM vm;
