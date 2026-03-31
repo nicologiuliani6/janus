@@ -1,30 +1,32 @@
 0000  START
-0001  PROC add
+0001  PROC encrypt
 0002  PARAM int x
-0003  PARAM int n
-0004  SHOW x
-0005  SHOW n
-0006  EVAL n 0
+0003  PARAM int key
+0004  DECL int k
+0005  PUSHEQ k key
+0006  EVAL key 0
 0007  JMPF ELSE_6
 0008  JMP FI_6
 0009  LABEL ELSE_6
-0010  MINEQ n 1
-0011  PUSHEQ x 1
-0012  CALL add x n
+0010  PUSHEQ x k
+0011  MINEQ k 1
+0012  CALL encrypt x k
 0013  LABEL FI_6
-0014  EVAL n 0
-0015  ASSERT n 0
-0016  SHOW x
-0017  SHOW n
-0018  END_PROC add
-0019  PROC main
-0020  LOCAL stack s nil
-0021  LOCAL int n 1
-0022  DECL int x
-0023  CALL add x n
-0024  SHOW s
-0025  UNCALL add x n
-0026  DELOCAL int n 1
-0027  DELOCAL stack s nil
-0028  END_PROC main
-0029  HALT
+0014  EVAL key 0
+0015  ASSERT key 0
+0016  END_PROC encrypt
+0017  PROC main
+0018  LOCAL int key 10
+0019  LOCAL int msg 0
+0020  SHOW msg
+0021  SHOW key
+0022  CALL encrypt msg key
+0023  SHOW msg
+0024  SHOW key
+0025  UNCALL encrypt msg key
+0026  SHOW msg
+0027  SHOW key
+0028  DELOCAL int msg 0
+0029  DELOCAL int key 10
+0030  END_PROC main
+0031  HALT

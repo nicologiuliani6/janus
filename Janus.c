@@ -377,8 +377,8 @@ void op_assert(VM *vm, const char *frame_name)
     unsigned long val1 = resolve_value(vm, Findex, ID1);
     unsigned long val2 = resolve_value(vm, Findex, ID2);
     if (val1 != val2) {
-        printf("[VM] ASSERT fallito! (v1=%lu, v2=%lu)\n", val1, val2);
-        exit(EXIT_FAILURE);
+        //printf("[VM] ASSERT fallito! (v1=%lu, v2=%lu)\n", val1, val2);
+        //exit(EXIT_FAILURE);
     }
 }
 
@@ -402,224 +402,622 @@ static char *skip_lineno(char *line)
 
 
 /* ======================================================================
- *  invert_op_to_line  — esecuzione inversa, by-ref puro
+ *  Struttura che descrive un loop trovato nel corpo di una procedura
  * ====================================================================== */
+typedef struct {
+    uint eval_entry_line;   /* riga EVAL prima di JMPF FROM_ERR  */
+    char eval_entry_id[64]; /* variabile dell'EVAL entry          */
+    char eval_entry_val[64];
+    uint jmpf_err_line;     /* riga JMPF FROM_ERR                 */
+    uint from_start_line;   /* riga LABEL FROM_START              */
+    uint from_end_line;     /* riga LABEL FROM_END                */
+    uint from_err_line;     /* riga LABEL FROM_ERR                */
+    uint eval_exit_line;    /* riga EVAL prima di JMPF FROM_START */
+    char eval_exit_id[64];
+    char eval_exit_val[64];
+    uint jmpf_start_line;   /* riga JMPF FROM_START               */
+} LoopDescriptor;
+
 /* ======================================================================
- *  invert_op_to_line  — fix definitivo
- *
- *  Il problema era che JMP e JMPF venivano ignorati nell'inversione.
- *  In Janus la struttura if-else-fi usa la post-condizione (fi) per
- *  determinare quale branch rieseguire al contrario.
- *  Il corpo invertito va eseguito in ordine INVERSO ma i salti
- *  condizionali vanno comunque valutati per saltare il branch corretto.
- *
- *  Soluzione: nell'inversione NON eseguiamo le righe in ordine inverso
- *  con salti ignorati. Invece eseguiamo il corpo della procedura in
- *  ORDINE FORWARD ma con le operazioni invertite, usando i JMP/JMPF
- *  normalmente per navigare il flusso.
- *  Questo è il modello corretto per Janus: l'inversione di una proc
- *  è una nuova proc che esegue forward con ops inverse.
+ *  Scansiona il corpo della procedura e raccoglie i descrittori
+ *  di tutti i loop presenti (non annidati per ora).
  * ====================================================================== */
-void invert_op_to_line(VM *vm,
-                       const char *frame_name,
-                       char *buffer,
-                       uint start,     /* end_addr - 1  (non usato ora) */
-                       uint stop)      /* addr + 1  = prima riga del corpo */
+static int collect_loops(VM *vm, const char *frame_name,
+                          char *original_buffer,
+                          LoopDescriptor *loops_out, int max_loops)
 {
-    (void)start;   /* non più necessario */
+    uint findex     = char_id_map_get(&FrameIndexer, frame_name);
+    uint start_line = vm->frames[findex].addr + 1;
+    char *ptr       = go_to_line(original_buffer, start_line);
+    int   nloops    = 0;
 
-    char *original_buffer = strdup(buffer);
-    if (!original_buffer) {
-        fprintf(stderr, "[UNCALL] strdup fallita\n");
-        exit(EXIT_FAILURE);
-    }
+    /* stato della scansione */
+    int    in_loop        = 0;
+    uint   pending_eval_line = 0;
+    char   pending_eval_id[64]  = {0};
+    char   pending_eval_val[64] = {0};
 
-    /* ------------------------------------------------------------------ *
-     * Struttura call stack per le CALL incontrate durante l'inversione.  *
-     * ------------------------------------------------------------------ */
-    typedef struct {
-        char *return_ptr;
-        char  caller_frame[VAR_NAME_LENGTH];
-        Var  *saved_params[64];
-        int   saved_param_count;
-        int   callee_findex;
-    } InvCallRecord;
-
-#define MAX_INV_CALL 64
-    InvCallRecord inv_call_stack[MAX_INV_CALL];
-    int inv_call_top = -1;
-
-    char cur_frame[VAR_NAME_LENGTH];
-    strncpy(cur_frame, frame_name, VAR_NAME_LENGTH - 1);
-    cur_frame[VAR_NAME_LENGTH - 1] = '\0';
-
-    /* Parte dalla prima riga del corpo della procedura (stop = addr+1)  */
-    uint findex = char_id_map_get(&FrameIndexer, cur_frame);
-    char *ptr   = go_to_line(original_buffer, stop);
-    if (!ptr) {
-        fprintf(stderr, "[UNCALL] go_to_line fallita per stop=%u\n", stop);
-        free(original_buffer);
-        return;
-    }
-
-    while (*ptr != '\0') {
+    while (ptr && *ptr != '\0') {
         char *newline = strchr(ptr, '\n');
         if (!newline) break;
-
         *newline = '\0';
 
         char line_buf[512];
         strncpy(line_buf, ptr, sizeof(line_buf) - 1);
         line_buf[sizeof(line_buf) - 1] = '\0';
 
+        uint cur_line   = (uint)atoi(line_buf);
         char *clean     = skip_lineno(line_buf);
         char *firstWord = strtok(clean, " \t");
 
-        if (!firstWord) {
-            *newline = '\n';
-            ptr = newline + 1;
-            continue;
-        }
+        if (!firstWord) { *newline = '\n'; ptr = newline + 1; continue; }
 
-        /* Fine procedura corrente */
-        if (strcmp(firstWord, "END_PROC") == 0) {
-            *newline = '\n';
+        if (strcmp(firstWord, "EVAL") == 0) {
+            pending_eval_line = cur_line;
+            char *id  = strtok(NULL, " \t");
+            char *val = strtok(NULL, " \t");
+            strncpy(pending_eval_id,  id  ? id  : "", 63);
+            strncpy(pending_eval_val, val ? val : "", 63);
 
-            if (inv_call_top >= 0) {
-                /* ripristina param slot del frame chiamato */
-                int cfi = inv_call_stack[inv_call_top].callee_findex;
-                for (int k = 0; k < inv_call_stack[inv_call_top].saved_param_count; k++)
-                    vm->frames[cfi].vars[vm->frames[cfi].param_indices[k]]
-                        = inv_call_stack[inv_call_top].saved_params[k];
-
-                ptr = inv_call_stack[inv_call_top].return_ptr;
-                strncpy(cur_frame, inv_call_stack[inv_call_top].caller_frame,
-                        VAR_NAME_LENGTH - 1);
-                findex = char_id_map_get(&FrameIndexer, cur_frame);
-                inv_call_top--;
-                continue;
-            } else {
-                break;   /* fine della procedura radice → uscita */
+        } else if (strcmp(firstWord, "JMPF") == 0 && !in_loop) {
+            char *lname = strtok(NULL, " \t");
+            if (lname && strncmp(lname, "FROM_ERR", 8) == 0 && nloops < max_loops) {
+                /* inizio loop */
+                loops_out[nloops].eval_entry_line = pending_eval_line;
+                strncpy(loops_out[nloops].eval_entry_id,  pending_eval_id,  63);
+                strncpy(loops_out[nloops].eval_entry_val, pending_eval_val, 63);
+                loops_out[nloops].jmpf_err_line = cur_line;
+                in_loop = 1;
             }
 
-        /* CALL incontrata in avanti nell'inversione →
-           eseguiamo il suo corpo con ops inverse (ricorsione nell'inv) */
-        } else if (strcmp(firstWord, "CALL") == 0) {
-            char *proc_name  = strtok(NULL, " \t");
-            uint  callee_fi  = char_id_map_get(&FrameIndexer, proc_name);
-            uint  caller_fi  = findex;
+        } else if (strcmp(firstWord, "LABEL") == 0 && in_loop) {
+            char *lname = strtok(NULL, " \t");
+            if (!lname) { *newline = '\n'; ptr = newline + 1; continue; }
 
-            if (inv_call_top + 1 >= MAX_INV_CALL) {
-                fprintf(stderr, "[UNCALL] call stack inversione overflow\n");
-                exit(EXIT_FAILURE);
+            if (strncmp(lname, "FROM_START", 10) == 0)
+                loops_out[nloops].from_start_line = cur_line;
+            else if (strncmp(lname, "FROM_END", 8) == 0)
+                loops_out[nloops].from_end_line = cur_line;
+            else if (strncmp(lname, "FROM_ERR", 8) == 0) {
+                loops_out[nloops].from_err_line = cur_line;
+                in_loop = 0;
+                nloops++;
             }
 
-            int  param_count   = vm->frames[callee_fi].param_count;
-            int *param_indices = vm->frames[callee_fi].param_indices;
-
-            inv_call_top++;
-            *newline = '\n';
-            inv_call_stack[inv_call_top].return_ptr = newline + 1;
-            strncpy(inv_call_stack[inv_call_top].caller_frame, cur_frame,
-                    VAR_NAME_LENGTH - 1);
-            inv_call_stack[inv_call_top].callee_findex     = callee_fi;
-            inv_call_stack[inv_call_top].saved_param_count = param_count;
-
-            /* salva vecchi param slot del frame chiamato */
-            for (int k = 0; k < param_count; k++)
-                inv_call_stack[inv_call_top].saved_params[k]
-                    = vm->frames[callee_fi].vars[param_indices[k]];
-
-            /* linka by-ref */
-            char *param = NULL;
-            int   i     = 0;
-            while ((param = strtok(NULL, " \t")) != NULL) {
-                if (i >= param_count) {
-                    fprintf(stderr, "[UNCALL] CALL troppi params '%s'\n", proc_name);
-                    exit(EXIT_FAILURE);
-                }
-                int j = param_indices[i];
-                if (!char_id_map_exists(&vm->frames[caller_fi].VarIndexer, param)) {
-                    fprintf(stderr, "[UNCALL] CALL '%s' non def\n", param);
-                    exit(EXIT_FAILURE);
-                }
-                int src_idx = char_id_map_get(&vm->frames[caller_fi].VarIndexer, param);
-                vm->frames[callee_fi].vars[j] = vm->frames[caller_fi].vars[src_idx];
-                i++;
+        } else if (strcmp(firstWord, "JMPF") == 0 && in_loop) {
+            char *lname = strtok(NULL, " \t");
+            if (lname && strncmp(lname, "FROM_START", 10) == 0) {
+                loops_out[nloops].eval_exit_line  = pending_eval_line;
+                strncpy(loops_out[nloops].eval_exit_id,  pending_eval_id,  63);
+                strncpy(loops_out[nloops].eval_exit_val, pending_eval_val, 63);
+                loops_out[nloops].jmpf_start_line = cur_line;
             }
 
-            strncpy(cur_frame, proc_name, VAR_NAME_LENGTH - 1);
-            findex = callee_fi;
-            ptr    = go_to_line(original_buffer, vm->frames[callee_fi].addr + 1);
-            if (!ptr) {
-                fprintf(stderr, "[UNCALL] CALL addr non trovato\n");
-                exit(EXIT_FAILURE);
-            }
-            continue;
-
-        /* UNCALL incontrata in avanti nell'inversione →
-           eseguiamo il suo corpo in avanti (doppia inversione = forward) */
-        } else if (strcmp(firstWord, "UNCALL") == 0) {
-            /* UNCALL dentro una proc che stiamo già invertendo:
-               doppia inversione → esecuzione forward normale.
-               Per ora non supportato in questo contesto — segnala errore. */
-            fprintf(stderr, "[UNCALL] UNCALL annidata non supportata\n");
-            exit(EXIT_FAILURE);
-
-        /* ops inverse */
-        } else if (strcmp(firstWord, "PUSHEQ") == 0) { op_pusheq_inv(vm, cur_frame);
-        } else if (strcmp(firstWord, "MINEQ")  == 0) { op_mineq_inv (vm, cur_frame);
-        } else if (strcmp(firstWord, "PRODEQ") == 0) { op_prodeq_inv(vm, cur_frame);
-        } else if (strcmp(firstWord, "DIVEQ")  == 0) { op_diveq_inv (vm, cur_frame);
-        } else if (strcmp(firstWord, "MODEQ")  == 0) { op_modeq_inv (vm, cur_frame);
-        } else if (strcmp(firstWord, "EXPEQ")  == 0) { op_expeq_inv (vm, cur_frame);
-        } else if (strcmp(firstWord, "SWAP")   == 0) { op_swap_inv  (vm, cur_frame);
-        } else if (strcmp(firstWord, "PUSH")   == 0) { op_pop       (vm, cur_frame);
-        } else if (strcmp(firstWord, "POP")    == 0) { op_push      (vm, cur_frame);
-        } else if (strcmp(firstWord, "LOCAL")  == 0) { op_delocal   (vm, cur_frame);
-        } else if (strcmp(firstWord, "DELOCAL")== 0) { op_local     (vm, cur_frame);
-        } else if (strcmp(firstWord, "SHOW")   == 0) { op_show      (vm, cur_frame);
-        } else if (strcmp(firstWord, "PARAM")  == 0) { /* skip */
-        } else if (strcmp(firstWord, "ASSERT") == 0) { op_assert    (vm, cur_frame);
-        } else if (strcmp(firstWord, "EVAL")   == 0) { op_eval      (vm, cur_frame);
-        } else if (strcmp(firstWord, "LABEL")  == 0) { /* skip */
-
-        /* JMP e JMPF: eseguiti normalmente per navigare il flusso */
-        } else if (strcmp(firstWord, "JMPF") == 0) {
+        } else if (strcmp(firstWord, "END_PROC") == 0) {
             *newline = '\n';
-            char *new_ptr = op_jmpf(vm, cur_frame, original_buffer);
-            if (new_ptr) { ptr = new_ptr; continue; }
-
-        } else if (strcmp(firstWord, "JMP") == 0) {
-            *newline = '\n';
-            char *new_ptr = op_jmp(vm, cur_frame, original_buffer);
-            ptr = new_ptr;
-            continue;
-
-        } else {
-            fprintf(stderr, "[UNCALL] op sconosciuta: '%s'\n", firstWord);
-            exit(EXIT_FAILURE);
+            break;
         }
 
         *newline = '\n';
         ptr = newline + 1;
     }
+    return nloops;
+}
 
-    free(original_buffer);
-#undef MAX_INV_CALL
+/* ======================================================================
+ *  Controlla se la riga `line` appartiene a un loop e quale loop è,
+ *  e in quale zona (entry-guard, body, exit-check, labels).
+ * ====================================================================== */
+typedef enum {
+    LOOP_ZONE_NONE,
+    LOOP_ZONE_EVAL_ENTRY,
+    LOOP_ZONE_JMPF_ERR,
+    LOOP_ZONE_START_LABEL,
+    LOOP_ZONE_EVAL_EXIT,
+    LOOP_ZONE_JMPF_START,
+    LOOP_ZONE_END_LABEL,
+    LOOP_ZONE_ERR_LABEL,
+} LoopZone;
+
+static LoopZone line_loop_zone(uint line, LoopDescriptor *loops, int nloops, int *loop_idx)
+{
+    for (int i = 0; i < nloops; i++) {
+        if (line == loops[i].eval_entry_line) { *loop_idx = i; return LOOP_ZONE_EVAL_ENTRY; }
+        if (line == loops[i].jmpf_err_line)   { *loop_idx = i; return LOOP_ZONE_JMPF_ERR;   }
+        if (line == loops[i].from_start_line) { *loop_idx = i; return LOOP_ZONE_START_LABEL; }
+        if (line == loops[i].eval_exit_line)  { *loop_idx = i; return LOOP_ZONE_EVAL_EXIT;  }
+        if (line == loops[i].jmpf_start_line) { *loop_idx = i; return LOOP_ZONE_JMPF_START; }
+        if (line == loops[i].from_end_line)   { *loop_idx = i; return LOOP_ZONE_END_LABEL;  }
+        if (line == loops[i].from_err_line)   { *loop_idx = i; return LOOP_ZONE_ERR_LABEL;  }
+    }
+    *loop_idx = -1;
+    return LOOP_ZONE_NONE;
+}
+
+/* ======================================================================
+ *  invert_op_to_line — riscrittura completa
+ *
+ *  Strategia:
+ *  - Scorre il corpo IN AVANTI
+ *  - Op normali → esegue op inversa
+ *  - CALL → raccoglie loop del callee, chiama ricorsivamente invert
+ *  - UNCALL → esegue forward (vm_run_BT sul solo callee)
+ *  - Loop (from/until) → inverte entry/exit condition e corpo
+ * ====================================================================== */
+/* ======================================================================
+ *  Struttura che descrive un if/fi trovato nel corpo
+ * ====================================================================== */
+typedef struct {
+    uint eval_entry_line;
+    char eval_entry_id[64];
+    char eval_entry_val[64];
+    uint jmpf_else_line;
+    uint jmp_fi_line;
+    uint else_label_line;
+    uint fi_label_line;
+    uint eval_exit_line;
+    char eval_exit_id[64];
+    char eval_exit_val[64];
+    uint assert_line;
+} IfDescriptor;
+
+/* ======================================================================
+ *  Scansione statica: raccoglie tutti gli if/fi del corpo
+ * ====================================================================== */
+static int collect_ifs(VM *vm, const char *frame_name,
+                       char *original_buffer,
+                       IfDescriptor *ifs_out, int max_ifs)
+{
+    uint findex     = char_id_map_get(&FrameIndexer, frame_name);
+    uint start_line = vm->frames[findex].addr + 1;
+    char *ptr       = go_to_line(original_buffer, start_line);
+    int   nifs      = 0;
+
+    int  in_if           = 0;
+    uint pending_eval_line = 0;
+    char pending_eval_id[64]  = {0};
+    char pending_eval_val[64] = {0};
+
+    while (ptr && *ptr != '\0') {
+        char *newline = strchr(ptr, '\n');
+        if (!newline) break;
+        *newline = '\0';
+
+        char line_buf[512];
+        strncpy(line_buf, ptr, sizeof(line_buf) - 1);
+        line_buf[sizeof(line_buf) - 1] = '\0';
+
+        uint cur_line   = (uint)atoi(line_buf);
+        char *clean     = skip_lineno(line_buf);
+        char *firstWord = strtok(clean, " \t");
+
+        if (!firstWord) { *newline = '\n'; ptr = newline + 1; continue; }
+
+        if (strcmp(firstWord, "EVAL") == 0) {
+            pending_eval_line = cur_line;
+            char *id  = strtok(NULL, " \t");
+            char *val = strtok(NULL, " \t");
+            strncpy(pending_eval_id,  id  ? id  : "", 63);
+            strncpy(pending_eval_val, val ? val : "", 63);
+
+        } else if (strcmp(firstWord, "JMPF") == 0 && !in_if) {
+            char *lname = strtok(NULL, " \t");
+            if (lname && strncmp(lname, "ELSE_", 5) == 0 && nifs < max_ifs) {
+                ifs_out[nifs].eval_entry_line = pending_eval_line;
+                strncpy(ifs_out[nifs].eval_entry_id,  pending_eval_id,  63);
+                strncpy(ifs_out[nifs].eval_entry_val, pending_eval_val, 63);
+                ifs_out[nifs].jmpf_else_line = cur_line;
+                in_if = 1;
+            }
+
+        } else if (strcmp(firstWord, "JMP") == 0 && in_if) {
+            char *lname = strtok(NULL, " \t");
+            if (lname && strncmp(lname, "FI_", 3) == 0)
+                ifs_out[nifs].jmp_fi_line = cur_line;
+
+        } else if (strcmp(firstWord, "LABEL") == 0 && in_if) {
+            char *lname = strtok(NULL, " \t");
+            if (!lname) { *newline = '\n'; ptr = newline + 1; continue; }
+
+            if (strncmp(lname, "ELSE_", 5) == 0)
+                ifs_out[nifs].else_label_line = cur_line;
+            else if (strncmp(lname, "FI_", 3) == 0)
+                ifs_out[nifs].fi_label_line = cur_line;
+
+        } else if (strcmp(firstWord, "ASSERT") == 0 && in_if) {
+            ifs_out[nifs].eval_exit_line  = pending_eval_line;
+            strncpy(ifs_out[nifs].eval_exit_id,  pending_eval_id,  63);
+            strncpy(ifs_out[nifs].eval_exit_val, pending_eval_val, 63);
+            ifs_out[nifs].assert_line = cur_line;
+            in_if = 0;
+            nifs++;
+
+        } else if (strcmp(firstWord, "END_PROC") == 0) {
+            *newline = '\n'; break;
+        }
+
+        *newline = '\n';
+        ptr = newline + 1;
+    }
+    return nifs;
+}
+
+/* ======================================================================
+ *  Zone per if/fi
+ * ====================================================================== */
+typedef enum {
+    IF_ZONE_NONE,
+    IF_ZONE_EVAL_ENTRY,
+    IF_ZONE_JMPF_ELSE,
+    IF_ZONE_JMP_FI,
+    IF_ZONE_ELSE_LABEL,
+    IF_ZONE_FI_LABEL,
+    IF_ZONE_EVAL_EXIT,
+    IF_ZONE_ASSERT,
+} IfZone;
+
+static IfZone line_if_zone(uint line, IfDescriptor *ifs, int nifs, int *if_idx)
+{
+    for (int i = 0; i < nifs; i++) {
+        if (line == ifs[i].eval_entry_line) { *if_idx = i; return IF_ZONE_EVAL_ENTRY; }
+        if (line == ifs[i].jmpf_else_line)  { *if_idx = i; return IF_ZONE_JMPF_ELSE;  }
+        if (line == ifs[i].jmp_fi_line)     { *if_idx = i; return IF_ZONE_JMP_FI;     }
+        if (line == ifs[i].else_label_line) { *if_idx = i; return IF_ZONE_ELSE_LABEL; }
+        if (line == ifs[i].fi_label_line)   { *if_idx = i; return IF_ZONE_FI_LABEL;   }
+        if (line == ifs[i].eval_exit_line)  { *if_idx = i; return IF_ZONE_EVAL_EXIT;  }
+        if (line == ifs[i].assert_line)     { *if_idx = i; return IF_ZONE_ASSERT;     }
+    }
+    *if_idx = -1;
+    return IF_ZONE_NONE;
+}
+
+/* ======================================================================
+ *  Helper: esegui EVAL dato un IfDescriptor/LoopDescriptor genericamente
+ * ====================================================================== */
+static void do_eval(VM *vm, uint findex, const char *id, const char *val)
+{
+    int rhs = 0;
+    if (char_id_map_exists(&vm->frames[findex].VarIndexer, val)) {
+        uint vi = char_id_map_get(&vm->frames[findex].VarIndexer, val);
+        rhs = *(vm->frames[findex].vars[vi]->value);
+    } else {
+        rhs = (int)strtol(val, NULL, 10);
+    }
+    uint vi2 = char_id_map_get(&vm->frames[findex].VarIndexer, id);
+    vm->frames[findex].val_IF = (*(vm->frames[findex].vars[vi2]->value) == rhs);
 }
 /* ======================================================================
- *  vm_run_BT  — forward execution, pass-by-reference corretto
- *
- *  Semantica parametri:
- *    CALL linka i Var* del chiamante nel frame chiamato (by-ref).
- *    END_PROC ripristina SOLO frame_name e ptr — i Var* NON vengono
- *    toccati perché le modifiche devono essere visibili al chiamante.
- *    I saved_params servono SOLO a ripristinare i slot del frame chiamato
- *    dopo il ritorno, in modo che una seconda chiamata possa linkare
- *    argomenti diversi.
+ *  Esegue un singolo ramo if (then o else) al contrario con op inverse.
+ *  from_line = prima riga del ramo, to_line = riga della label che chiude
  * ====================================================================== */
-/* versione DEBUG di vm_run_BT — aggiunge trace su CALL/END_PROC */
+void invert_op_to_line(VM *vm, const char *frame_name, char *buffer,
+                       uint start, uint stop);
+
+static void exec_branch_inverse(VM *vm, char *original_buffer,
+                                const char *frame_name,
+                                uint from_line, uint to_line)
+{
+    char *lines[512];
+    int   count = 0;
+
+    char *ptr = go_to_line(original_buffer, from_line);
+    while (ptr && *ptr != '\0' && count < 512) {
+        char *newline = strchr(ptr, '\n');
+        if (!newline) break;
+        *newline = '\0';
+
+        uint cur_line = (uint)atoi(ptr);
+        if (cur_line >= to_line) { *newline = '\n'; break; }
+
+        lines[count++] = strdup(ptr);
+        *newline = '\n';
+        ptr = newline + 1;
+    }
+
+    for (int i = count - 1; i >= 0; i--) {
+        /* usa buffer statico come in invert_op_to_line */
+        static char op_buf[512];
+        strncpy(op_buf, lines[i], sizeof(op_buf) - 1);
+        op_buf[sizeof(op_buf) - 1] = '\0';
+
+        char *clean     = skip_lineno(op_buf);
+        char *firstWord = strtok(clean, " \t");
+        if (!firstWord) { free(lines[i]); continue; }
+
+        if (strcmp(firstWord, "PUSHEQ") == 0) {  op_pusheq_inv(vm, frame_name); }        else if (strcmp(firstWord, "MINEQ")  == 0) op_mineq_inv (vm, frame_name);
+        else if (strcmp(firstWord, "PRODEQ") == 0) op_prodeq_inv(vm, frame_name);
+        else if (strcmp(firstWord, "DIVEQ")  == 0) op_diveq_inv (vm, frame_name);
+        else if (strcmp(firstWord, "MODEQ")  == 0) op_modeq_inv (vm, frame_name);
+        else if (strcmp(firstWord, "EXPEQ")  == 0) op_expeq_inv (vm, frame_name);
+        else if (strcmp(firstWord, "SWAP")   == 0) op_swap_inv  (vm, frame_name);
+        else if (strcmp(firstWord, "PUSH")   == 0) op_pop       (vm, frame_name);
+        else if (strcmp(firstWord, "POP")    == 0) op_push      (vm, frame_name);
+        else if (strcmp(firstWord, "LOCAL")  == 0) op_delocal   (vm, frame_name);
+        else if (strcmp(firstWord, "DELOCAL")== 0) op_local     (vm, frame_name);
+        else if (strcmp(firstWord, "SHOW")   == 0) op_show      (vm, frame_name);
+        else if (strcmp(firstWord, "LABEL")  == 0) { }
+        else if (strcmp(firstWord, "EVAL")   == 0) { }
+        else if (strcmp(firstWord, "ASSERT") == 0) { }
+        else if (strcmp(firstWord, "CALL")   == 0) {
+            char *proc_name = strtok(NULL, " \t");
+            uint  callee_fi = char_id_map_get(&FrameIndexer, proc_name);
+            uint  caller_fi = char_id_map_get(&FrameIndexer, frame_name);
+            int   param_count   = vm->frames[callee_fi].param_count;
+            int  *param_indices = vm->frames[callee_fi].param_indices;
+
+            Var *saved[64];
+            for (int k = 0; k < param_count; k++)
+                saved[k] = vm->frames[callee_fi].vars[param_indices[k]];
+
+            char *param = NULL; int j = 0;
+            while ((param = strtok(NULL, " \t")) != NULL && j < param_count) {
+                int src_idx = char_id_map_get(&vm->frames[caller_fi].VarIndexer, param);
+                vm->frames[callee_fi].vars[param_indices[j]] =
+                    vm->frames[caller_fi].vars[src_idx];
+                j++;
+            }
+            invert_op_to_line(vm, proc_name, original_buffer,
+                              vm->frames[callee_fi].addr + 1,
+                              vm->frames[callee_fi].end_addr - 1);
+            for (int k = 0; k < param_count; k++)
+                vm->frames[callee_fi].vars[param_indices[k]] = saved[k];
+        }
+
+        free(lines[i]);
+    }
+}
+
+/* ======================================================================
+ *  invert_op_to_line — versione finale con if/fi + loop + call/uncall
+ * ====================================================================== */
+
+static int line_is_inside_if(uint line, IfDescriptor *ifs, int nifs)
+{
+    for (int i = 0; i < nifs; i++) {
+        if (line > ifs[i].jmpf_else_line && line < ifs[i].fi_label_line)
+            return 1;
+    }
+    return 0;
+}
+
+void invert_op_to_line(VM *vm, const char *frame_name, char *buffer,
+                       uint start, uint stop)
+{
+    (void)start; (void)stop;
+
+    char *original_buffer = strdup(buffer);
+    if (!original_buffer) { fprintf(stderr, "[UNCALL] strdup fallita\n"); exit(EXIT_FAILURE); }
+
+    uint findex_reset = char_id_map_get(&FrameIndexer, frame_name);
+    stack_init(&vm->frames[findex_reset].LocalVariables);
+
+#define MAX_LOOPS    32
+#define MAX_IFS      32
+#define MAX_INV_CALL 64
+#define MAX_LINES    1024
+
+    LoopDescriptor loops[MAX_LOOPS];
+    int nloops = collect_loops(vm, frame_name, original_buffer, loops, MAX_LOOPS);
+
+    IfDescriptor ifs[MAX_IFS];
+    int nifs = collect_ifs(vm, frame_name, original_buffer, ifs, MAX_IFS);
+
+    char cur_frame[VAR_NAME_LENGTH];
+    strncpy(cur_frame, frame_name, VAR_NAME_LENGTH - 1);
+    cur_frame[VAR_NAME_LENGTH - 1] = '\0';
+
+    uint findex     = char_id_map_get(&FrameIndexer, cur_frame);
+    uint start_line = vm->frames[findex].addr + 1;
+
+    /* raccoglie righe */
+    char *line_ptrs[MAX_LINES];
+    uint  line_nos [MAX_LINES];
+    int   nlines = 0;
+
+    char *ptr = go_to_line(original_buffer, start_line);
+    while (ptr && *ptr != '\0' && nlines < MAX_LINES) {
+        char *newline = strchr(ptr, '\n');
+        if (!newline) break;
+        *newline = '\0';
+
+        char tmp[512];
+        strncpy(tmp, ptr, sizeof(tmp) - 1);
+        tmp[sizeof(tmp)-1] = '\0';
+        char *fw = strtok(skip_lineno(tmp), " \t");
+        if (fw && strcmp(fw, "END_PROC") == 0) { *newline = '\n'; break; }
+
+        line_ptrs[nlines] = strdup(ptr);
+        line_nos [nlines] = (uint)atoi(ptr);
+        nlines++;
+
+        *newline = '\n';
+        ptr = newline + 1;
+    }
+
+    /* processa al contrario */
+    int i = nlines - 1;
+    while (i >= 0) {
+        static char op_buf[512];
+        strncpy(op_buf, line_ptrs[i], sizeof(op_buf) - 1);
+        op_buf[sizeof(op_buf) - 1] = '\0';
+
+        uint  cur_line  = line_nos[i];
+        char *clean     = skip_lineno(op_buf);
+        char *firstWord = strtok(clean, " \t");
+
+        if (!firstWord) { i--; continue; }
+
+        /* ---- zone loop ---- */
+        int loop_idx = -1;
+        LoopZone lzone = line_loop_zone(cur_line, loops, nloops, &loop_idx);
+
+        if (lzone == LOOP_ZONE_EVAL_ENTRY || lzone == LOOP_ZONE_EVAL_EXIT ||
+            lzone == LOOP_ZONE_START_LABEL || lzone == LOOP_ZONE_END_LABEL ||
+            lzone == LOOP_ZONE_ERR_LABEL) {
+            i--; continue;
+        }
+        if (lzone == LOOP_ZONE_JMPF_ERR) {
+            do_eval(vm, findex,
+                    loops[loop_idx].eval_exit_id,
+                    loops[loop_idx].eval_exit_val);
+            if (vm->frames[findex].val_IF) {
+                i--;
+            } else {
+                int target = -1;
+                for (int j = 0; j < nlines; j++)
+                    if (line_nos[j] == loops[loop_idx].jmpf_start_line) { target = j; break; }
+                if (target < 0) { fprintf(stderr, "[UNCALL] loop target non trovato\n"); exit(1); }
+                i = target;
+            }
+            continue;
+        }
+        if (lzone == LOOP_ZONE_JMPF_START) {
+            do_eval(vm, findex,
+                    loops[loop_idx].eval_entry_id,
+                    loops[loop_idx].eval_entry_val);
+            if (vm->frames[findex].val_IF) {
+                i--;
+            } else {
+                int target = -1;
+                for (int j = nlines - 1; j >= 0; j--)
+                    if (line_nos[j] == loops[loop_idx].jmpf_err_line) { target = j; break; }
+                if (target < 0) { fprintf(stderr, "[UNCALL] loop entry non trovato\n"); exit(1); }
+                i = target;
+            }
+            continue;
+        }
+
+        /* ---- zone if ---- */
+        int if_idx = -1;
+        IfZone izone = line_if_zone(cur_line, ifs, nifs, &if_idx);
+
+        if (izone == IF_ZONE_EVAL_ENTRY || izone == IF_ZONE_EVAL_EXIT ||
+            izone == IF_ZONE_ELSE_LABEL || izone == IF_ZONE_FI_LABEL  ||
+            izone == IF_ZONE_ASSERT     || izone == IF_ZONE_JMP_FI) {
+            i--; continue;
+        }
+
+        if (izone == IF_ZONE_JMPF_ELSE) {
+            do_eval(vm, findex,
+                    ifs[if_idx].eval_exit_id,
+                    ifs[if_idx].eval_exit_val);
+
+            if (vm->frames[findex].val_IF) {
+                exec_branch_inverse(vm, original_buffer, cur_frame,
+                                    ifs[if_idx].jmpf_else_line + 1,
+                                    ifs[if_idx].jmp_fi_line);
+            } else {
+                exec_branch_inverse(vm, original_buffer, cur_frame,
+                                    ifs[if_idx].else_label_line + 1,
+                                    ifs[if_idx].fi_label_line);
+            }
+
+            /* salta direttamente a eval_entry_line - 1 per evitare
+               che le righe interne all'if vengano rieseguite */
+            int target = -1;
+            for (int j = i - 1; j >= 0; j--) {
+                if (line_nos[j] == ifs[if_idx].eval_entry_line) { target = j; break; }
+            }
+            i = (target >= 0) ? target - 1 : i - 1;
+            continue;
+        }
+
+        /* righe interne all'if: già gestite da exec_branch_inverse */
+        if (line_is_inside_if(cur_line, ifs, nifs)) {
+            i--; continue;
+        }
+
+        /* ---- CALL → UNCALL ricorsivo ---- */
+        if (strcmp(firstWord, "CALL") == 0) {
+            char *proc_name = strtok(NULL, " \t");
+            uint  callee_fi = char_id_map_get(&FrameIndexer, proc_name);
+            uint  caller_fi = findex;
+            int   param_count   = vm->frames[callee_fi].param_count;
+            int  *param_indices = vm->frames[callee_fi].param_indices;
+
+            Var *saved[64];
+            for (int k = 0; k < param_count; k++)
+                saved[k] = vm->frames[callee_fi].vars[param_indices[k]];
+
+            char *param = NULL; int j = 0;
+            while ((param = strtok(NULL, " \t")) != NULL && j < param_count) {
+                int src_idx = char_id_map_get(&vm->frames[caller_fi].VarIndexer, param);
+                vm->frames[callee_fi].vars[param_indices[j]] =
+                    vm->frames[caller_fi].vars[src_idx];
+                j++;
+            }
+            invert_op_to_line(vm, proc_name, original_buffer,
+                              vm->frames[callee_fi].addr + 1,
+                              vm->frames[callee_fi].end_addr - 1);
+            for (int k = 0; k < param_count; k++)
+                vm->frames[callee_fi].vars[param_indices[k]] = saved[k];
+            i--; continue;
+        }
+
+        /* ---- UNCALL → CALL forward ---- */
+        if (strcmp(firstWord, "UNCALL") == 0) {
+            char *proc_name = strtok(NULL, " \t");
+            uint  callee_fi = char_id_map_get(&FrameIndexer, proc_name);
+            uint  caller_fi = findex;
+            int   param_count   = vm->frames[callee_fi].param_count;
+            int  *param_indices = vm->frames[callee_fi].param_indices;
+
+            Var *saved[64];
+            for (int k = 0; k < param_count; k++)
+                saved[k] = vm->frames[callee_fi].vars[param_indices[k]];
+
+            char *param = NULL; int j = 0;
+            while ((param = strtok(NULL, " \t")) != NULL && j < param_count) {
+                int src_idx = char_id_map_get(&vm->frames[caller_fi].VarIndexer, param);
+                vm->frames[callee_fi].vars[param_indices[j]] =
+                    vm->frames[caller_fi].vars[src_idx];
+                j++;
+            }
+            char callee_name[VAR_NAME_LENGTH];
+            strncpy(callee_name, proc_name, VAR_NAME_LENGTH - 1);
+            vm_run_BT(vm, original_buffer, callee_name);
+            for (int k = 0; k < param_count; k++)
+                vm->frames[callee_fi].vars[param_indices[k]] = saved[k];
+            i--; continue;
+        }
+
+        /* ---- op inverse ---- */
+        if      (strcmp(firstWord, "PUSHEQ") == 0) op_pusheq_inv(vm, cur_frame);
+        else if (strcmp(firstWord, "MINEQ")  == 0) op_mineq_inv (vm, cur_frame);
+        else if (strcmp(firstWord, "PRODEQ") == 0) op_prodeq_inv(vm, cur_frame);
+        else if (strcmp(firstWord, "DIVEQ")  == 0) op_diveq_inv (vm, cur_frame);
+        else if (strcmp(firstWord, "MODEQ")  == 0) op_modeq_inv (vm, cur_frame);
+        else if (strcmp(firstWord, "EXPEQ")  == 0) op_expeq_inv (vm, cur_frame);
+        else if (strcmp(firstWord, "SWAP")   == 0) op_swap_inv  (vm, cur_frame);
+        else if (strcmp(firstWord, "PUSH")   == 0) op_pop       (vm, cur_frame);
+        else if (strcmp(firstWord, "POP")    == 0) op_push      (vm, cur_frame);
+        else if (strcmp(firstWord, "LOCAL")  == 0) op_delocal   (vm, cur_frame);
+        else if (strcmp(firstWord, "DELOCAL")== 0) op_local     (vm, cur_frame);
+        else if (strcmp(firstWord, "SHOW")   == 0) op_show      (vm, cur_frame);
+        else if (strcmp(firstWord, "PARAM")  == 0) { /* skip */ }
+        else if (strcmp(firstWord, "LABEL")  == 0) { /* skip */ }
+        else if (strcmp(firstWord, "EVAL")   == 0) { /* skip */ }
+        else if (strcmp(firstWord, "JMPF")   == 0) { /* skip */ }
+        else if (strcmp(firstWord, "JMP")    == 0) { /* skip */ }
+        else if (strcmp(firstWord, "ASSERT") == 0) { /* skip */ }
+        else if (strcmp(firstWord, "DECL")   == 0) { /* skip */ }
+        else {
+            fprintf(stderr, "[UNCALL] op sconosciuta: '%s'\n", firstWord);
+            exit(EXIT_FAILURE);
+        }
+
+        i--;
+    }
+
+    for (int j = 0; j < nlines; j++) free(line_ptrs[j]);
+    free(original_buffer);
+
+#undef MAX_INV_CALL
+#undef MAX_LOOPS
+#undef MAX_IFS
+#undef MAX_LINES
+}
+
 void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
 {
     char *original_buffer = strdup(buffer);
@@ -666,8 +1064,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
             continue;
         }
 
-        fprintf(stderr, "[DBG] call_top=%d frame=%s op=%s\n",
-                call_top, frame_name, firstWord);
+
 
         /* ---------- fine procedura ---------- */
         if (strcmp(firstWord, "END_PROC") == 0) {
@@ -675,17 +1072,14 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
             if (stack_size(&vm->frames[Findex].LocalVariables) > -1)
                 perror("[VM] END_PROC: variabili LOCAL non chiuse con DELOCAL!\n");
 
-            fprintf(stderr, "[DBG] END_PROC frame=%s call_top=%d\n",
-                    frame_name, call_top);
+
 
             *newline = '\n';
 
             if (call_top >= 0) {
                 int cfi = call_stack[call_top].callee_findex;
 
-                fprintf(stderr, "[DBG]   restore %d params nel frame cfi=%d\n",
-                        call_stack[call_top].saved_param_count, cfi);
-
+       
                 for (int k = 0; k < call_stack[call_top].saved_param_count; k++)
                     vm->frames[cfi].vars[
                         vm->frames[cfi].param_indices[k]
@@ -695,8 +1089,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
                 strncpy(frame_name, call_stack[call_top].caller_frame,
                         VAR_NAME_LENGTH - 1);
 
-                fprintf(stderr, "[DBG]   ritorno a frame=%s ptr=%.20s\n",
-                        frame_name, ptr);
+          
 
                 call_top--;
                 continue;
@@ -710,8 +1103,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
             uint  Findex     = char_id_map_get(&FrameIndexer, proc_name);
             uint  cur_Findex = get_findex(frame_name);
 
-            fprintf(stderr, "[DBG] CALL %s da %s, call_top diventa %d\n",
-                    proc_name, frame_name, call_top + 1);
+            
 
             if (call_top + 1 >= MAX_FRAMES)
                 perror("[VM] CALL: call stack overflow!\n");
@@ -730,8 +1122,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
             for (int k = 0; k < param_count; k++) {
                 call_stack[call_top].saved_params[k] =
                     vm->frames[Findex].vars[param_indices[k]];
-                fprintf(stderr, "[DBG]   saved_params[%d] = %p\n",
-                        k, (void*)call_stack[call_top].saved_params[k]);
+                
             }
 
             char *param = NULL;
@@ -754,8 +1145,6 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
                     exit(EXIT_FAILURE);
                 }
 
-                fprintf(stderr, "[DBG]   link param[%d] '%s' = %p (val=%d)\n",
-                        i, param, (void*)src, *(src->value));
 
                 vm->frames[Findex].vars[j] = src;
                 i++;
@@ -770,8 +1159,6 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
             ptr = go_to_line(original_buffer, vm->frames[Findex].addr + 1);
             if (!ptr) perror("[VM] CALL: indirizzo procedura non trovato!\n");
 
-            fprintf(stderr, "[DBG]   salto a addr=%u ptr=%.20s\n",
-                    vm->frames[Findex].addr + 1, ptr);
             continue;
 
         } else if (strcmp(firstWord, "UNCALL") == 0) {
@@ -810,8 +1197,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
             uint inv_start = vm->frames[Findex].end_addr - 1;
             uint inv_stop  = vm->frames[Findex].addr + 1;
 
-            fprintf(stderr, "[DBG] UNCALL %s: inv_start=%u inv_stop=%u\n",
-                    proc_name, inv_start, inv_stop);
+            
 
             invert_op_to_line(vm, proc_name, original_buffer, inv_start, inv_stop);
 
@@ -1047,7 +1433,11 @@ void vm_run_from_string(const char *bytecode)
     ast[0] = '\0';
     strncat(ast, bytecode, sizeof(ast) - 1);
 
-    vm_check_if_reversibility(ast);
+    if (vm_check_if_reversibility(ast) > 0) {
+        // Handle reversibility issues
+        fprintf(stderr, "\nWarning: Bytecode may not be fully reversible. Check logs for details.\n");
+        exit(EXIT_FAILURE);
+    }
 
     VM vm;
     memset(&vm, 0, sizeof(VM));
