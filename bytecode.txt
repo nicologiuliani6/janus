@@ -9,24 +9,22 @@
 0008  PUSHEQ m k
 0009  MINEQ k 1
 0010  CALL encrypt m k
-0011  PUSHEQ k 1
-0012  MINEQ m k
-0013  LABEL FI_4
-0014  EVAL k 0
-0015  ASSERT k 0
-0016  END_PROC encrypt
-0017  PROC main
-0018  LOCAL int key 17
-0019  LOCAL int msg 0
-0020  SHOW msg
-0021  SHOW key
-0022  CALL encrypt msg key
-0023  SHOW msg
-0024  SHOW key
-0025  UNCALL encrypt msg key
-0026  SHOW msg
-0027  SHOW key
-0028  DELOCAL int msg 0
-0029  DELOCAL int key 17
-0030  END_PROC main
-0031  HALT
+0011  LABEL FI_4
+0012  EVAL k 0
+0013  ASSERT k 0
+0014  END_PROC encrypt
+0015  PROC main
+0016  LOCAL int key 17
+0017  LOCAL int msg 0
+0018  SHOW msg
+0019  SHOW key
+0020  CALL encrypt msg key
+0021  SHOW msg
+0022  SHOW key
+0023  UNCALL encrypt msg key
+0024  SHOW msg
+0025  SHOW key
+0026  DELOCAL int msg 0
+0027  DELOCAL int key 17
+0028  END_PROC main
+0029  HALT

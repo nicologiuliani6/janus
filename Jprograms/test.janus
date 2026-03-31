@@ -15,8 +15,6 @@ procedure encrypt(int m, int k)
         m += k
         k -= 1
         call encrypt(m, k)
-        k += 1     // ripristino reversibile
-        m -= k     // ripristino reversibile
     fi k = 0
 
 procedure main()
@@ -26,7 +24,7 @@ procedure main()
     show(key)          // 17
     call encrypt(msg, key)
     show(msg)          // 153 (17+16+...+1)
-    show(key)          // 17 (non modificata)
+    show(key)          // 0 
     uncall encrypt(msg, key)
     show(msg)          // torna 0
     show(key)          // torna 17
