@@ -1292,7 +1292,7 @@ void vm_run_BT(VM *vm, char *buffer, char *frame_name_init)
                 fprintf(stderr, "ERROR: parametri UNCALL mismatch '%s'\n", proc_name);
                 exit(EXIT_FAILURE);
             }
-
+            printf("[VM] UNCALL %s\n", proc_name);
             invert_op_to_line(vm, proc_name, original_buffer,
                               vm->frames[Findex].end_addr - 1,
                               vm->frames[Findex].addr + 1);
