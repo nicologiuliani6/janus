@@ -1,12 +1,3 @@
-//procedure encrypt1(int m)
-//    local int k = 17
-//    from k = 17 loop
-//        //show(k)
-//        m += k
-//        k -= 1
-//    until k = 0
-//    delocal int k = 0
-    
 procedure encrypt(int m, int k)
     if k = 0 then
         //skip
@@ -16,16 +7,49 @@ procedure encrypt(int m, int k)
         call encrypt(m, k)
     fi k = 0
 
+
+procedure producer(stack buffer, int n)
+    local int pub_key = 17
+    local int i = 0
+    from i = 0 loop
+        i += 1
+        local int item = 0
+            item += i
+            local int k = pub_key //la chiave pubblica è quella che viene usata per criptare
+            call encrypt(item, k)
+            delocal int k = 0
+            push(item, buffer)
+        delocal int item = 0
+    until i = n
+    delocal int i = n
+    delocal int pub_key = 17
+
+procedure consumer(stack buffer, stack result, int n)
+    local int priv_key = 17
+    local int i = 0
+    from i = 0 loop
+        local int item = 0
+            pop(item, buffer)
+            local int k = 0
+            uncall encrypt(item, k)
+            delocal int k = priv_key //controlliamo se la chiave combacia con la privata
+            //show(item)
+            push(item, result)
+        delocal int item = 0
+        i += 1
+    until i = n
+    delocal int i = n
+    delocal int priv_key = 17
+
 procedure main()
-    local int key = 17
-    local int msg = 0
-    show(msg)          // 0
-    show(key)          // 17
-    call encrypt(msg, key)
-    show(msg)          // 153 (17+16+...+1)
-    show(key)          // 0 
-    uncall encrypt(msg, key)
-    show(msg)          // torna 0
-    show(key)          // torna 17
-    delocal int msg = 0
-    delocal int key = 17
+    stack result
+    local stack buffer = nil
+    local int n = 5
+    call producer(buffer, n)
+    call consumer(buffer, result, n)
+    show(result)
+    uncall consumer(buffer, result, n)
+    uncall producer(buffer, n)
+    show(result)
+    delocal int n = 5
+    delocal stack buffer = nil
