@@ -1,39 +1,28 @@
-procedure producer(channel ch, int n)
-    local int pub_key = 17
-    local int i = 0
-    from i = 0 loop
-        i += 1
-        local int item = 0
-            item += i
-            show(item)
-            ssend(item, ch)
-        delocal int item = 0
-    until i = n
-    delocal int i = n
-    delocal int pub_key = 17
-
-procedure consumer(channel ch, stack result, int n)
-    local int priv_key = 17
-    local int i = 0
-    from i = 0 loop
-        local int item = 0
-            srecv(item, ch)
-            show(item)
-            push(item, result)
-        delocal int item = 0
-        i += 1
-    until i = n
-    delocal int i = n
-    delocal int priv_key = 17
-
 procedure main()
-    local channel ch = empty
-    stack result
-    local int n = 5
-    par
-        call producer(ch, n)
+    channel c
+    int x11
+    x11+=11
+    int x12
+    x12+=12
+    int x21
+    int x22
+    par 
+        show(x11)
+        ssend(x11, c)
+        show(x11)
     and
-        call consumer(ch, result, n)
+        par 
+            show(x12)
+            ssend(x12, c)
+            show(x12)
+        and
+            show(x21)
+            srecv(x21, c)
+            show(x21)
+            show(x22)
+            srecv(x22, c)
+            show(x22)
+        rap
     rap
-    delocal int n = 5
-    delocal channel ch = empty
+    show(x21)
+    show(x22)

@@ -20,10 +20,13 @@ typedef enum {
     TYPE_PARAM = 3
 } ValueType;
 
+typedef struct ThreadArgs ThreadArgs; // forward declaration (sposta qui quella che era dopo)
+
 typedef struct Waiter {
-    pthread_cond_t cond;
-    int ready;
-    struct Waiter *next;
+    pthread_cond_t  cond;
+    int             ready;
+    struct Waiter  *next;
+    ThreadArgs     *thread_args;
 } Waiter;
 
 typedef struct ThreadArgs ThreadArgs;// forward declaration
@@ -190,7 +193,7 @@ void op_pop(VM *vm, const char *frame_name);
 void op_wait(Channel *ch, int is_send)
 {
     pthread_mutex_lock(&ch->mtx);
-    //fprintf(stderr, "[WAIT] is_send=%d send_q=%p recv_q=%p current=%p\n",      is_send, ch->send_q_head, ch->recv_q_head, current_thread_args);
+    fprintf(stderr, "[WAIT] is_send=%d send_q=%p recv_q=%p current=%p\n",      is_send, ch->send_q_head, ch->recv_q_head, current_thread_args);
     Waiter self;
     pthread_cond_init(&self.cond, NULL);
     self.ready = 0;
@@ -221,13 +224,13 @@ void op_wait(Channel *ch, int is_send)
 
         } else {
             // nessun receiver in attesa: mettiti in coda e bloccati
+            self.thread_args = current_thread_args;  // ← salva nei Waiter, non nel channel
+
             if (ch->send_q_tail)
                 ch->send_q_tail->next = &self;
             else
                 ch->send_q_head = &self;
             ch->send_q_tail = &self;
-
-            ch->sender_args = current_thread_args;
 
             // segnala al main che questo thread si è bloccato
             if (current_thread_args) {
@@ -252,20 +255,23 @@ void op_wait(Channel *ch, int is_send)
         }
 
     } else { // recv
+        fprintf(stderr, "[RECV] send_q_head=%p\n", ch->send_q_head);
         if (ch->send_q_head) {
+            fprintf(stderr, "[RECV] first sender args=%p\n", ch->sender_args);
             // match immediato: receiver sblocca sender
             Waiter *w = ch->send_q_head;
             ch->send_q_head = w->next;
             if (!ch->send_q_head) ch->send_q_tail = NULL;
 
-            ThreadArgs *sender = ch->sender_args;
-            //fprintf(stderr, "[RECV match] sender=%p sender->blocked=%d sender->finished=%d\n",sender, sender ? sender->blocked : -1, sender ? sender->finished : -1);
+            ThreadArgs *sender = w->thread_args;  // ← dal Waiter, non dal channel
+            fprintf(stderr, "[RECV match] sender=%p sender->blocked=%d sender->finished=%d\n",sender, sender ? sender->blocked : -1, sender ? sender->finished : -1);
             ch->sender_args = NULL;
 
             w->ready = 1;
             pthread_cond_signal(&w->cond);
             pthread_mutex_unlock(&ch->mtx);
 
+            // aspetta che il sender finisca il suo turno
             // aspetta che il sender finisca il suo turno
             if (sender) {
                 pthread_mutex_lock(sender->done_mtx);
@@ -1307,12 +1313,88 @@ static void *thread_entry(void *arg)
         if (!firstWord) { *newline = '\n'; ptr = newline + 1; continue; }
 
         if (strncmp(firstWord, "THREAD_", 7) == 0 ||
-            strcmp(firstWord, "PAR_END")     == 0 ||
-            strcmp(firstWord, "PAR_START")   == 0) {
+            strcmp(firstWord, "PAR_END")     == 0){
             *newline = '\n';
             break;
         }
+if (strcmp(firstWord, "PAR_START") == 0) {
+    *newline = '\n';
+    char *par_ptr = newline + 1;
 
+    char *thread_starts[16];
+    int   n_threads = 0;
+    int   depth = 1;
+    char *scan = par_ptr;
+    char *par_end_ptr = NULL;
+
+    while (*scan && depth > 0) {
+        char *nl = strchr(scan, '\n');
+        if (!nl) break;
+        *nl = '\0';
+        char tmp[512];
+        strncpy(tmp, scan, sizeof(tmp)-1);
+        char *fw = strtok(skip_lineno(tmp), " \t");
+        if (fw) {
+            if (strcmp(fw, "PAR_START") == 0) depth++;
+            else if (strcmp(fw, "PAR_END") == 0) {
+                depth--;
+                if (depth == 0) {
+                    par_end_ptr = nl;
+                    *nl = '\n';
+                    break;
+                }
+            } else if (strncmp(fw, "THREAD_", 7) == 0 && depth == 1) {
+                thread_starts[n_threads++] = nl + 1;
+            }
+        }
+        *nl = '\n';
+        scan = nl + 1;
+    }
+
+    pthread_mutex_t done_mtx  = PTHREAD_MUTEX_INITIALIZER;
+    pthread_cond_t  done_cond = PTHREAD_COND_INITIALIZER;
+
+    ThreadArgs *all_args[16];
+    for (int t = 0; t < n_threads; t++) {
+        all_args[t] = malloc(sizeof(ThreadArgs));
+        all_args[t]->vm        = vm;
+        all_args[t]->buffer    = args->buffer;
+        all_args[t]->start_ptr = thread_starts[t];
+        all_args[t]->finished  = 0;
+        all_args[t]->blocked   = 0;
+        all_args[t]->turn_done = 0;
+        all_args[t]->done_mtx  = &done_mtx;
+        all_args[t]->done_cond = &done_cond;
+        strncpy(all_args[t]->frame_name, fname, VAR_NAME_LENGTH-1);
+    }
+
+    for (int t = 0; t < n_threads; t++) {
+        pthread_create(&all_args[t]->tid, NULL, thread_entry, all_args[t]);
+        pthread_mutex_lock(&done_mtx);
+        while (!all_args[t]->finished && !all_args[t]->blocked)
+            pthread_cond_wait(&done_cond, &done_mtx);
+        pthread_mutex_unlock(&done_mtx);
+    }
+
+    pthread_mutex_lock(&done_mtx);
+    int finished_count = 0;
+    while (finished_count < n_threads) {
+        finished_count = 0;
+        for (int t = 0; t < n_threads; t++)
+            if (all_args[t]->finished) finished_count++;
+        if (finished_count < n_threads)
+            pthread_cond_wait(&done_cond, &done_mtx);
+    }
+    pthread_mutex_unlock(&done_mtx);
+
+    for (int t = 0; t < n_threads; t++) {
+        pthread_join(all_args[t]->tid, NULL);
+        free(all_args[t]);
+    }
+
+    ptr = par_end_ptr ? par_end_ptr + 1 : scan + 1;
+    continue;
+}
         if      (strcmp(firstWord, "SHOW")    == 0) op_show   (vm, fname);
         else if (strcmp(firstWord, "PUSHEQ")  == 0) op_pusheq (vm, fname);
         else if (strcmp(firstWord, "MINEQ")   == 0) op_mineq  (vm, fname);
