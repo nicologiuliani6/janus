@@ -11,3 +11,11 @@ __pycache__/
 # build
 build/
 *.egg-info/
+
+libvm.so
+Janus
+Janus.core
+JanusApp.spec
+parser.out
+parsertab.py
+bytecode.txt

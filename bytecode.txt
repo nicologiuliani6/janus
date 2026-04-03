@@ -71,10 +71,9 @@
 0070  PROC main
 0071  LOCAL channel ch empty
 0072  DECL stack result
-0073  LOCAL int n 5
+0073  LOCAL int n 100000
 0074  CALL go ch result n
-0075  UNCALL go ch result n
-0076  DELOCAL int n 5
-0077  DELOCAL channel ch empty
-0078  END_PROC main
-0079  HALT
+0075  DELOCAL int n 100000
+0076  DELOCAL channel ch empty
+0077  END_PROC main
+0078  HALT
