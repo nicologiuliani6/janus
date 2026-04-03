@@ -45,8 +45,8 @@ procedure go(channel ch, stack result, int n)
 procedure main()
     local channel ch = empty
     stack result
-    local int n = 100000
+    local int n = 5
     call go(ch, result, n)
     //uncall go(ch, result, n)
-    delocal int n = 100000
+    delocal int n = 5
     delocal channel ch = empty
