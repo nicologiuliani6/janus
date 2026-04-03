@@ -94,6 +94,7 @@ struct ThreadArgs {
 static __thread ThreadArgs *current_thread_args = NULL;
 static __thread char *strtok_saveptr = NULL;
 static __thread uint thread_val_IF = 0;
+static pthread_mutex_t var_indexer_mtx = PTHREAD_MUTEX_INITIALIZER;
 
 #define strtok(str, delim) strtok_r((str), (delim), &strtok_saveptr)
 /* ======================================================================
@@ -142,20 +143,20 @@ static Var *get_var(VM *vm, uint Findex, const char *name, const char *op_name)
 }
 static char *go_to_line(char *buffer, uint line)
 {
-    fprintf(stderr, "[go_to_line] cerco riga %u buffer=%p\n", line, buffer);
+    //fprintf(stderr, "[go_to_line] cerco riga %u buffer=%p\n", line, buffer);
     if (!buffer)  return NULL;
     if (line == 0) return buffer;
     uint cur = 1;
     char *p = buffer;
     while (*p) {
         if (cur == line) {
-            fprintf(stderr, "[go_to_line] trovata riga %u: %.20s\n", line, p);
+            //fprintf(stderr, "[go_to_line] trovata riga %u: %.20s\n", line, p);
             return p;
         }
         if (*p == '\n') cur++;
         p++;
     }
-    fprintf(stderr, "[go_to_line] riga %u non trovata, cur=%u\n", line, cur);
+    //fprintf(stderr, "[go_to_line] riga %u non trovata, cur=%u\n", line, cur);
     return NULL;
 }
 
@@ -212,26 +213,21 @@ static int op_wait(Channel *ch, int is_send)
     self.thread_args = current_thread_args;
 
     if (is_send) {
-        if (ch->recv_q_head) {
-            /* match immediato: receiver era in coda */
-            Waiter *w = ch->recv_q_head;
-            ch->recv_q_head = w->next;
-            if (!ch->recv_q_head) ch->recv_q_tail = NULL;
+           if (ch->recv_q_head) {
+        /* match immediato: receiver era in coda */
+        Waiter *w = ch->recv_q_head;
+        ch->recv_q_head = w->next;
+        if (!ch->recv_q_head) ch->recv_q_tail = NULL;
 
-            ThreadArgs *receiver = w->thread_args;
-            w->ready = 1;
-            pthread_cond_signal(&w->cond);
-            pthread_mutex_unlock(&ch->mtx);
+        w->ready = 1;
+        pthread_cond_signal(&w->cond);
+        pthread_mutex_unlock(&ch->mtx);
 
-            /* aspetta che il receiver completi il POP */
-            if (receiver) {
-                pthread_mutex_lock(receiver->done_mtx);
-                while (!receiver->finished && !receiver->turn_done)
-                    pthread_cond_wait(receiver->done_cond, receiver->done_mtx);
-                receiver->turn_done = 0;
-                pthread_mutex_unlock(receiver->done_mtx);
-            }
-            return 0; /* già sincronizzato, op_push NON deve aspettare */
+        // ← RIMUOVI completamente l'attesa su receiver->turn_done
+        // Il valore è già nello stack, il receiver si sveglierà da solo
+
+        return 0;
+    
 
         } else {
             /* nessun receiver: sender si accoda e si blocca */
@@ -240,7 +236,7 @@ static int op_wait(Channel *ch, int is_send)
             else
                 ch->send_q_head = &self;
             ch->send_q_tail = &self;
-
+            fprintf(stderr, "[WAIT send queue] self=%p current=%p\n", &self, current_thread_args); // ← QUI
             if (current_thread_args) {
                 pthread_mutex_lock(current_thread_args->done_mtx);
                 current_thread_args->blocked = 1;
@@ -267,9 +263,8 @@ static int op_wait(Channel *ch, int is_send)
         ch->send_q_head = w->next;
         if (!ch->send_q_head) ch->send_q_tail = NULL;
 
-fprintf(stderr, "[WAIT recv match] ch=%p w->thread_args=%p\n", 
-        ch, w->thread_args);
-                ch->sender_args = w->thread_args;
+        fprintf(stderr, "[WAIT recv match] w=%p send_q_head dopo=%p\n", w, ch->send_q_head); // ← QUI
+        ch->sender_args = w->thread_args;
 
         w->ready = 1;
         pthread_cond_signal(&w->cond);
@@ -477,17 +472,16 @@ char *op_jmpf(VM *vm, const char *frame_name, char *original_buffer)
 {
     char *c_label = strtok(NULL, " \t");
     uint  Findex  = get_findex(frame_name);
-    fprintf(stderr, "[JMPF] label='%s' val_IF=%d\n", c_label ? c_label : "NULL", thread_val_IF);
+    //fprintf(stderr, "[JMPF] label='%s' val_IF=%d\n", c_label ? c_label : "NULL", thread_val_IF);
     if (thread_val_IF)
         return NULL;
     if (!char_id_map_exists(&vm->frames[Findex].LabelIndexer, c_label)) {
-        fprintf(stderr, "[JMPF] label '%s' non trovata nel LabelIndexer!\n", c_label);
+        //fprintf(stderr, "[JMPF] label '%s' non trovata nel LabelIndexer!\n", c_label);
         exit(EXIT_FAILURE);
     }
     uint  Lindex  = char_id_map_get(&vm->frames[Findex].LabelIndexer, c_label);
     char *new_ptr = go_to_line(original_buffer, vm->frames[Findex].label[Lindex] + 1);
-    fprintf(stderr, "[JMPF] salto a label=%s riga=%u new_ptr=%p\n", 
-            c_label, vm->frames[Findex].label[Lindex], new_ptr);
+    //fprintf(stderr, "[JMPF] salto a label=%s riga=%u new_ptr=%p\n",  c_label, vm->frames[Findex].label[Lindex], new_ptr);
     if (!new_ptr) perror("[VM] JMP: label non trovata!\n");
     return new_ptr;
 }
@@ -503,7 +497,10 @@ void op_local(VM *vm, const char *frame_name)
     char *c_Vvalue = strtok(NULL, " \t");
 
     uint Findex = get_findex(frame_name);
+
+    pthread_mutex_lock(&var_indexer_mtx);
     uint Vindex = char_id_map_get(&vm->frames[Findex].VarIndexer, Vname);
+    pthread_mutex_unlock(&var_indexer_mtx);
 
     vm->frames[Findex].vars[Vindex] = malloc(sizeof(Var));
     memset(vm->frames[Findex].vars[Vindex], 0, sizeof(Var));
@@ -518,26 +515,20 @@ void op_local(VM *vm, const char *frame_name)
         vm->frames[Findex].vars[Vindex]->value     = malloc(VAR_STACK_MAX_SIZE * sizeof(int));
     } else if (strcmp(Vtype, "channel") == 0) {
         Var *v = vm->frames[vm->frame_top].vars[Vindex];
-
         v->T         = TYPE_CHANNEL;
         v->stack_len = 0;
         v->value     = malloc(VAR_CHANNEL_MAX_SIZE * sizeof(int));
-
-        // ALLOCA il channel
         if (!v->channel) {
             v->channel = malloc(sizeof(Channel));
-            v->channel->send_q_head = NULL;
-            v->channel->send_q_tail = NULL;
-            v->channel->recv_q_head = NULL;
-            v->channel->recv_q_tail = NULL;
-            v->channel->sender_args = NULL;    // ← AGGIUNTO
-            v->channel->receiver_args = NULL;  // ← AGGIUNTO
+            v->channel->send_q_head  = NULL;
+            v->channel->send_q_tail  = NULL;
+            v->channel->recv_q_head  = NULL;
+            v->channel->recv_q_tail  = NULL;
+            v->channel->sender_args  = NULL;
+            v->channel->receiver_args = NULL;
         }
-
-        // Ora puoi inizializzare il mutex
         pthread_mutex_init(&v->channel->mtx, NULL);
-    }
-    else {
+    } else {
         perror("[VM] LOCAL: tipo non esistente\n");
     }
 
@@ -591,35 +582,40 @@ void op_delocal(VM *vm, const char *frame_name)
         Vvalue = (int) strtoul(c_Vvalue, NULL, 10);
 
     Var *V = stack_pop(&vm->frames[Findex].LocalVariables);
-    if (strcmp(Vtype, (V->T == 0 ? "int" : (V->T == 1 ? "stack" : "channel"))) != 0){
+    if (strcmp(Vtype, (V->T == 0 ? "int" : (V->T == 1 ? "stack" : "channel"))) != 0) {
         printf("[VM] DELOCAL: tipo errato! atteso %s, trovato %s\n",
                (V->T == 0 ? "int" : (V->T == 1 ? "stack" : "channel")), Vtype);
-        exit(EXIT_FAILURE);    
-        }
+        exit(EXIT_FAILURE);
+    }
 
-    if (strcmp(Vtype, "int") == 0){
-            if (Vvalue == *(V->value))
-                delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
+    if (strcmp(Vtype, "int") == 0) {
+        if (Vvalue == *(V->value)) {
+            pthread_mutex_lock(&var_indexer_mtx);
+            delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
                        char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
-        else {
+            pthread_mutex_unlock(&var_indexer_mtx);
+        } else {
             printf("[VM] DELOCAL: valore finale diverso dall'atteso! (%s, %d, %d)\n",
                    Vname, Vvalue, *(V->value));
             exit(1);
         }
-    }
-    else if (strcmp(Vtype, "stack") == 0) {
-        if (V->stack_len == 0 && strcmp(c_Vvalue, "nil") == 0)
+    } else if (strcmp(Vtype, "stack") == 0) {
+        if (V->stack_len == 0 && strcmp(c_Vvalue, "nil") == 0) {
+            pthread_mutex_lock(&var_indexer_mtx);
             delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
                        char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
-        else if (V->stack_len != 0)
+            pthread_mutex_unlock(&var_indexer_mtx);
+        } else if (V->stack_len != 0)
             perror("[VM] DELOCAL: stack deve essere nil!\n");
         else
             perror("[VM] DELOCAL: valore finale di stack diverso da nil!\n");
     } else if (strcmp(Vtype, "channel") == 0) {
-        if (V->stack_len == 0 && strcmp(c_Vvalue, "empty") == 0)
+        if (V->stack_len == 0 && strcmp(c_Vvalue, "empty") == 0) {
+            pthread_mutex_lock(&var_indexer_mtx);
             delete_var(vm->frames[Findex].vars, &vm->frames[Findex].var_count,
                        char_id_map_get(&vm->frames[Findex].VarIndexer, Vname));
-        else if (V->stack_len != 0)
+            pthread_mutex_unlock(&var_indexer_mtx);
+        } else if (V->stack_len != 0)
             perror("[VM] DELOCAL: channel deve essere empty!\n");
         else
             perror("[VM] DELOCAL: valore finale di stack diverso da nil!\n");
